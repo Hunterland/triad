@@ -1,22 +1,19 @@
 import { PrismaClient, RoleName } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1) Criar roles básicos, se não existirem
-  const roles = Object.values(RoleName); // ['ADMIN', 'ORGANIZER', 'JUDGE', 'STAFF', 'ATHLETE']
+  const roles = Object.values(RoleName);
 
   for (const roleName of roles) {
     await prisma.role.upsert({
       where: { name: roleName },
       update: {},
-      create: {
-        name: roleName,
-      },
+      create: { name: roleName },
     });
   }
 
-  // 2) (Opcional) Criar um usuário admin inicial
   const adminEmail = 'admin@triad.local';
 
   const existingAdmin = await prisma.user.findUnique({
@@ -24,24 +21,18 @@ async function main() {
   });
 
   if (!existingAdmin) {
-    // por enquanto, senha em texto; depois vamos trocar para hash com bcrypt no AuthModule
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash('changeme', saltRounds);
+
     const admin = await prisma.user.create({
       data: {
         email: adminEmail,
-        password: 'changeme', // será substituída por hash depois
+        password: passwordHash,
         displayName: 'TRIAD Admin',
         roles: {
           create: [
-            {
-              role: {
-                connect: { name: 'ADMIN' },
-              },
-            },
-            {
-              role: {
-                connect: { name: 'ORGANIZER' },
-              },
-            },
+            { role: { connect: { name: 'ADMIN' } } },
+            { role: { connect: { name: 'ORGANIZER' } } },
           ],
         },
       },
