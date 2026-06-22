@@ -9,16 +9,20 @@ import { RoleName } from '@prisma/client';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
+
+    if (!secret) {
+      throw new Error('JWT_SECRET não configurado');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('JWT_SECRET') ?? 'triad_dev_secret',
+      secretOrKey: secret,
     });
   }
 
   async validate(payload: JwtPayload) {
-    // Aqui você pode enriquecer o user se quiser.
     return {
       userId: payload.sub,
       email: payload.email,

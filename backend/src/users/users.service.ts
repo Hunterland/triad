@@ -1,17 +1,15 @@
 // src/users/users.service.ts
 import { Injectable } from '@nestjs/common';
-import { PrismaClient, RoleName, User } from '@prisma/client';
+import { RoleName } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+type UserWithRoles = Awaited<ReturnType<PrismaService['user']['findUnique']>>;
 
 @Injectable()
 export class UsersService {
-  private prisma: PrismaClient;
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(private readonly prismaService: PrismaService) {
-    this.prisma = this.prismaService as unknown as PrismaClient;
-  }
-
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<UserWithRoles> {
     return this.prisma.user.findUnique({
       where: { email },
       include: {
@@ -24,7 +22,7 @@ export class UsersService {
     });
   }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: string): Promise<UserWithRoles> {
     return this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -42,7 +40,7 @@ export class UsersService {
     passwordHash: string;
     displayName?: string;
     roles?: RoleName[];
-  }): Promise<User> {
+  }) {
     const {
       email,
       passwordHash,
@@ -63,15 +61,38 @@ export class UsersService {
           })),
         },
       },
-    });
-  }
-
-  async listAll(): Promise<User[]> {
-    return this.prisma.user.findMany({
       include: {
         roles: {
           include: {
             role: true,
+          },
+        },
+      },
+    });
+  }
+
+  async listAll() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        roles: {
+          select: {
+            userId: true,
+            roleId: true,
+            createdAt: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
