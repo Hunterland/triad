@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { IsAfterOrEqualDate } from '../../common/validators/is-after-or-equal-date.validator';
 
 export class CreateEventDto {
   @ApiProperty({
@@ -54,6 +55,9 @@ export class CreateEventDto {
   })
   @IsOptional()
   @IsDateString()
+  @IsAfterOrEqualDate('startDate', {
+    message: 'endDate deve ser maior ou igual a startDate',
+  })
   endDate?: string;
 
   @ApiPropertyOptional({
