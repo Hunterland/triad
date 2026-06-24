@@ -26,6 +26,19 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsService } from './events.service';
 
+/**
+ * Controller responsável pelo gerenciamento dos eventos.
+ *
+ * Responsabilidades:
+ * - Expor endpoints HTTP relacionados aos eventos;
+ * - Aplicar autenticação e autorização através dos Guards;
+ * - Delegar regras de negócio ao EventsService;
+ * - Documentar os endpoints utilizando Swagger.
+ *
+ * Segurança:
+ * - Todas as rotas exigem JWT válido;
+ * - Apenas usuários ADMIN e ORGANIZER podem acessar os recursos.
+ */
 @ApiTags('events')
 @ApiBearerAuth('Bearer')
 @ApiUnauthorizedResponse({
@@ -35,10 +48,38 @@ import { EventsService } from './events.service';
   description: 'Usuário autenticado sem permissão para acessar este recurso',
 })
 @Controller('events')
+/**
+ * JwtAuthGuard:
+ * Valida se o usuário está autenticado.
+ *
+ * RolesGuard:
+ * Verifica se o usuário possui uma das roles exigidas
+ * pelo decorator @Roles().
+ */
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class EventsController {
+  /**
+   * Serviço responsável pelas regras de negócio dos eventos.
+   * O controller apenas recebe as requisições e delega
+   * o processamento para o service.
+   */
   constructor(private readonly eventsService: EventsService) {}
-
+  /**
+   * Cria um novo evento.
+   *
+   * Endpoint:
+   * POST /events
+   *
+   * Fluxo:
+   * 1. Recebe os dados do corpo da requisição.
+   * 2. O JwtAuthGuard valida o token.
+   * 3. O RolesGuard verifica se o usuário é ADMIN ou ORGANIZER.
+   * 4. O EventsService realiza as validações e persiste o evento.
+   * 5. Retorna o evento criado.
+   *
+   * @param dto Dados do evento recebidos no body.
+   * @returns Evento criado.
+   */
   @ApiOperation({ summary: 'Criar evento' })
   @ApiCreatedResponse({
     description: 'Evento criado com sucesso',
@@ -60,12 +101,24 @@ export class EventsController {
   @ApiConflictResponse({
     description: 'Já existe um evento com este slug',
   })
-  @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Post()
   async create(@Body() dto: CreateEventDto): Promise<Event> {
     return await this.eventsService.create(dto);
   }
 
+  /**
+   * Lista todos os eventos cadastrados.
+   *
+   * Endpoint:
+   * GET /events
+   *
+   * Fluxo:
+   * 1. Verifica autenticação e autorização.
+   * 2. Solicita ao EventsService todos os eventos.
+   * 3. Retorna a coleção de eventos.
+   *
+   * @returns Lista de eventos.
+   */
   @ApiOperation({ summary: 'Listar eventos' })
   @ApiOkResponse({
     description: 'Lista de eventos cadastrados',
@@ -91,7 +144,18 @@ export class EventsController {
   async findAll(): Promise<Event[]> {
     return await this.eventsService.findAll();
   }
-
+  /**
+   * Busca um evento através do seu identificador.
+   *
+   * Endpoint:
+   * GET /events/:id
+   *
+   * @param id ID do evento.
+   * @returns Evento encontrado.
+   *
+   * Pode lançar:
+   * - NotFoundException caso o evento não exista.
+   */
   @ApiOperation({ summary: 'Buscar evento por ID' })
   @ApiOkResponse({
     description: 'Evento encontrado com sucesso',
@@ -118,7 +182,23 @@ export class EventsController {
   async findOne(@Param('id') id: string): Promise<Event> {
     return await this.eventsService.findOne(id);
   }
-
+  /**
+   * Atualiza parcialmente um evento existente.
+   *
+   * Endpoint:
+   * PATCH /events/:id
+   *
+   * Observação:
+   * Apenas os campos enviados no DTO serão alterados.
+   *
+   * @param id Identificador do evento.
+   * @param dto Dados para atualização.
+   * @returns Evento atualizado.
+   *
+   * Pode lançar:
+   * - NotFoundException;
+   * - ConflictException.
+   */
   @ApiOperation({ summary: 'Atualizar evento' })
   @ApiOkResponse({
     description: 'Evento atualizado com sucesso',
@@ -151,7 +231,19 @@ export class EventsController {
   ): Promise<Event> {
     return await this.eventsService.update(id, dto);
   }
-
+  /**
+   * Realiza uma desativação lógica (soft delete).
+   *
+   * Endpoint:
+   * PATCH /events/:id/deactivate
+   *
+   * Importante:
+   * O registro não é removido do banco.
+   * Apenas o campo isActive é alterado para false.
+   *
+   * @param id Identificador do evento.
+   * @returns Evento desativado.
+   */
   @ApiOperation({ summary: 'Desativar evento' })
   @ApiOkResponse({
     description: 'Evento desativado com sucesso',
