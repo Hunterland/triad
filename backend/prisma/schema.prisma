@@ -19,6 +19,14 @@ enum RoleName {
   ATHLETE
 }
 
+enum StaffRole {
+  JUDGE
+  MC
+  DJ
+  ORGANIZER
+  STAFF_SUPPORT
+}
+
 // --------------------------------------------------
 // MODELS
 // --------------------------------------------------
@@ -66,6 +74,53 @@ model Event {
   startDate   DateTime
   endDate     DateTime?
   isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  staffAssignments EventStaff[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StaffMember {
+  id          String    @id @default(uuid())
+  name        String
+  stageName   String?
+  email       String?   @unique
+  phone       String?
+  country     String?
+  city        String?
+  documentId  String?
+  defaultRole StaffRole
+  specialty   String?
+  isActive    Boolean   @default(true)
+
+  eventAssignments EventStaff[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("staff_members")
+}
+
+model EventStaff {
+  id            String    @id @default(uuid())
+  eventId       String
+  staffMemberId String
+  role          StaffRole
+  area          String?
+  order         Int?
+  isLead        Boolean   @default(false)
+  isActive      Boolean   @default(true)
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, staffMemberId, role])
+  @@index([eventId])
+  @@index([staffMemberId])
+  @@index([role])
+  @@map("event_staff")
 }
