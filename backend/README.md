@@ -14,7 +14,7 @@ A API centraliza as operações do sistema TRIAD, incluindo autenticação, gest
 - Swagger / OpenAPI
 - class-validator
 - class-transformer
-- JWT para autenticação[web:602][web:568][web:531]
+- JWT para autenticação
 
 ## Estrutura do projeto
 
