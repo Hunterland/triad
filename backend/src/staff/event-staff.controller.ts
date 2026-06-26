@@ -9,8 +9,10 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -19,18 +21,29 @@ import {
 import { EventStaffService } from './event-staff.service';
 import { CreateEventStaffDto } from './dto/create-event-staff.dto';
 import { UpdateEventStaffDto } from './dto/update-event-staff.dto';
+import { EventStaffResponseDto } from './dto/event-staff-response.dto';
+import { StaffMemberResponseDto } from './dto/staff-member-response.dto';
 
 @ApiTags('Event Staff')
+@ApiBearerAuth()
+@ApiExtraModels(EventStaffResponseDto, StaffMemberResponseDto)
 @Controller('events/:eventId/staff')
 export class EventStaffController {
   constructor(private readonly service: EventStaffService) {}
 
   @Post()
   @ApiOperation({ summary: 'Vincular staff member a um evento' })
-  @ApiCreatedResponse({ description: 'Vínculo criado com sucesso' })
-  @ApiBadRequestResponse({ description: 'Dados inválidos ou eventId inválido' })
-  @ApiConflictResponse({ description: 'Vínculo duplicado' })
-  @ApiNotFoundResponse({ description: 'Evento ou staff member não encontrado' })
+  @ApiCreatedResponse({
+    description: 'Vínculo criado com sucesso',
+    type: EventStaffResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Dados inválidos ou IDs inválidos' })
+  @ApiConflictResponse({
+    description: 'Staff member já vinculado ao evento com este papel',
+  })
+  @ApiNotFoundResponse({
+    description: 'Evento ou staff member não encontrado',
+  })
   create(
     @Param('eventId', new ParseUUIDPipe()) eventId: string,
     @Body() dto: CreateEventStaffDto,
@@ -40,8 +53,12 @@ export class EventStaffController {
 
   @Get()
   @ApiOperation({ summary: 'Listar staff de um evento' })
-  @ApiOkResponse({ description: 'Lista retornada com sucesso' })
-  @ApiBadRequestResponse({ description: 'eventId inválido' })
+  @ApiOkResponse({
+    description: 'Lista de staff do evento retornada com sucesso',
+    type: EventStaffResponseDto,
+    isArray: true,
+  })
+  @ApiBadRequestResponse({ description: 'ID do evento inválido' })
   @ApiNotFoundResponse({ description: 'Evento não encontrado' })
   findAllByEvent(@Param('eventId', new ParseUUIDPipe()) eventId: string) {
     return this.service.findAllByEvent(eventId);
@@ -49,9 +66,14 @@ export class EventStaffController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar vínculo de staff por id no evento' })
-  @ApiOkResponse({ description: 'Vínculo encontrado' })
-  @ApiBadRequestResponse({ description: 'eventId ou id inválido' })
-  @ApiNotFoundResponse({ description: 'Evento ou vínculo não encontrado' })
+  @ApiOkResponse({
+    description: 'Vínculo encontrado com sucesso',
+    type: EventStaffResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'IDs inválidos' })
+  @ApiNotFoundResponse({
+    description: 'Evento ou vínculo de staff não encontrado',
+  })
   findOne(
     @Param('eventId', new ParseUUIDPipe()) eventId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -61,11 +83,14 @@ export class EventStaffController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar vínculo de staff no evento' })
-  @ApiOkResponse({ description: 'Vínculo atualizado com sucesso' })
-  @ApiBadRequestResponse({
-    description: 'Dados inválidos, eventId inválido ou id inválido',
+  @ApiOkResponse({
+    description: 'Vínculo atualizado com sucesso',
+    type: EventStaffResponseDto,
   })
-  @ApiConflictResponse({ description: 'Vínculo duplicado' })
+  @ApiBadRequestResponse({ description: 'Dados inválidos ou IDs inválidos' })
+  @ApiConflictResponse({
+    description: 'Já existe vínculo com este staff member e papel neste evento',
+  })
   @ApiNotFoundResponse({
     description: 'Evento, staff member ou vínculo não encontrado',
   })
@@ -79,9 +104,14 @@ export class EventStaffController {
 
   @Patch(':id/deactivate')
   @ApiOperation({ summary: 'Desativar vínculo de staff no evento' })
-  @ApiOkResponse({ description: 'Vínculo desativado com sucesso' })
-  @ApiBadRequestResponse({ description: 'eventId inválido ou id inválido' })
-  @ApiNotFoundResponse({ description: 'Evento ou vínculo não encontrado' })
+  @ApiOkResponse({
+    description: 'Vínculo desativado com sucesso',
+    type: EventStaffResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'IDs inválidos' })
+  @ApiNotFoundResponse({
+    description: 'Evento ou vínculo de staff não encontrado',
+  })
   deactivate(
     @Param('eventId', new ParseUUIDPipe()) eventId: string,
     @Param('id', new ParseUUIDPipe()) id: string,

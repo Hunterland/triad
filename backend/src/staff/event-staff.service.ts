@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventStaffDto } from './dto/create-event-staff.dto';
 import { UpdateEventStaffDto } from './dto/update-event-staff.dto';
@@ -53,21 +54,34 @@ export class EventStaffService {
       );
     }
 
-    return this.prisma.eventStaff.create({
-      data: {
-        eventId,
-        staffMemberId: dto.staffMemberId,
-        role: dto.role,
-        area: dto.area,
-        order: dto.order,
-        isLead: dto.isLead ?? false,
-        isActive: dto.isActive ?? true,
-      },
-      include: {
-        event: true,
-        staffMember: true,
-      },
-    });
+    try {
+      return await this.prisma.eventStaff.create({
+        data: {
+          eventId,
+          staffMemberId: dto.staffMemberId,
+          role: dto.role,
+          area: dto.area,
+          order: dto.order,
+          isLead: dto.isLead ?? false,
+          isActive: dto.isActive ?? true,
+        },
+        include: {
+          event: true,
+          staffMember: true,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Este staff member já está vinculado a este evento com este papel',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async findAllByEvent(eventId: string) {
@@ -130,14 +144,47 @@ export class EventStaffService {
       );
     }
 
-    return this.prisma.eventStaff.update({
-      where: { id },
-      data: dto,
-      include: {
-        event: true,
-        staffMember: true,
-      },
-    });
+    const data: Prisma.EventStaffUpdateInput = {
+      ...(dto.staffMemberId !== undefined && {
+        staffMember: { connect: { id: dto.staffMemberId } },
+      }),
+      ...(dto.role !== undefined && { role: dto.role }),
+      ...(dto.area !== undefined && { area: dto.area }),
+      ...(dto.order !== undefined && { order: dto.order }),
+      ...(dto.isLead !== undefined && { isLead: dto.isLead }),
+      ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+    };
+
+    try {
+      return await this.prisma.eventStaff.update({
+        where: { id },
+        data,
+        include: {
+          event: true,
+          staffMember: true,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Já existe vínculo com este staff member e papel neste evento',
+        );
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          'Vínculo de staff não encontrado para este evento',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async deactivate(eventId: string, id: string) {

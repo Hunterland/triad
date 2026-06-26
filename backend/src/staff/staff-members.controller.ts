@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -19,15 +20,20 @@ import {
 import { StaffMembersService } from './staff-members.service';
 import { CreateStaffMemberDto } from './dto/create-staff-member.dto';
 import { UpdateStaffMemberDto } from './dto/update-staff-member.dto';
+import { StaffMemberResponseDto } from './dto/staff-member-response.dto';
 
 @ApiTags('Staff Members')
+@ApiBearerAuth()
 @Controller('staff-members')
 export class StaffMembersController {
   constructor(private readonly service: StaffMembersService) {}
 
   @Post()
   @ApiOperation({ summary: 'Criar staff member' })
-  @ApiCreatedResponse({ description: 'Staff member criado com sucesso' })
+  @ApiCreatedResponse({
+    description: 'Staff member criado com sucesso',
+    type: StaffMemberResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'Dados inválidos' })
   @ApiConflictResponse({ description: 'Email já cadastrado' })
   create(@Body() dto: CreateStaffMemberDto) {
@@ -36,14 +42,21 @@ export class StaffMembersController {
 
   @Get()
   @ApiOperation({ summary: 'Listar staff members' })
-  @ApiOkResponse({ description: 'Lista retornada com sucesso' })
+  @ApiOkResponse({
+    description: 'Lista retornada com sucesso',
+    type: StaffMemberResponseDto,
+    isArray: true,
+  })
   findAll() {
     return this.service.findAll();
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar staff member por id' })
-  @ApiOkResponse({ description: 'Staff member encontrado' })
+  @ApiOkResponse({
+    description: 'Staff member encontrado',
+    type: StaffMemberResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'ID inválido' })
   @ApiNotFoundResponse({ description: 'Staff member não encontrado' })
   findOne(@Param('id', new ParseUUIDPipe()) id: string) {
@@ -52,7 +65,10 @@ export class StaffMembersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar staff member' })
-  @ApiOkResponse({ description: 'Staff member atualizado com sucesso' })
+  @ApiOkResponse({
+    description: 'Staff member atualizado com sucesso',
+    type: StaffMemberResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'Dados inválidos ou ID inválido' })
   @ApiConflictResponse({ description: 'Email já cadastrado' })
   @ApiNotFoundResponse({ description: 'Staff member não encontrado' })
@@ -65,7 +81,10 @@ export class StaffMembersController {
 
   @Patch(':id/deactivate')
   @ApiOperation({ summary: 'Desativar staff member' })
-  @ApiOkResponse({ description: 'Staff member desativado com sucesso' })
+  @ApiOkResponse({
+    description: 'Staff member desativado com sucesso',
+    type: StaffMemberResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'ID inválido' })
   @ApiNotFoundResponse({ description: 'Staff member não encontrado' })
   deactivate(@Param('id', new ParseUUIDPipe()) id: string) {

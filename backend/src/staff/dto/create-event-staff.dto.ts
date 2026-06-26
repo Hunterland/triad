@@ -12,32 +12,53 @@ import {
 } from 'class-validator';
 
 export class CreateEventStaffDto {
-  @ApiProperty({ example: '4d0d4b4e-7c44-4db1-8ea3-bfd17624f111' })
-  @IsUUID()
-  staffMemberId: string;
+  @ApiProperty({
+    example: '48838c6b-399c-4a49-96f8-f41ea17a374e',
+    description: 'ID do staff member que será vinculado ao evento',
+  })
+  @IsUUID('4')
+  staffMemberId!: string;
 
-  @ApiProperty({ enum: StaffRole, example: StaffRole.JUDGE })
+  @ApiProperty({
+    enum: StaffRole,
+    example: StaffRole.JUDGE,
+    description: 'Papel do staff member no evento',
+  })
   @IsEnum(StaffRole)
-  role: StaffRole;
+  role!: StaffRole;
 
-  @ApiPropertyOptional({ example: '1x1 Breaking Pro' })
+  @ApiPropertyOptional({
+    example: '1x1 Breaking Pro',
+    description: 'Área, categoria ou contexto em que o staff atuará no evento',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   area?: string;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Ordem de exibição ou prioridade do staff dentro do papel',
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   order?: number;
 
-  @ApiPropertyOptional({ example: false, default: false })
+  @ApiPropertyOptional({
+    example: false,
+    default: false,
+    description: 'Indica se o staff member é o principal naquele papel',
+  })
   @IsOptional()
   @IsBoolean()
   isLead?: boolean;
 
-  @ApiPropertyOptional({ example: true, default: true })
+  @ApiPropertyOptional({
+    example: true,
+    default: true,
+    description: 'Indica se o vínculo será criado como ativo',
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
