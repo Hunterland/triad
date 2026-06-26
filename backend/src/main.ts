@@ -1,4 +1,3 @@
-// src/main.ts
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -33,6 +32,18 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+
+  document.tags = [
+    { name: 'auth', description: 'Endpoints de autenticação' },
+    { name: 'users', description: 'Endpoints de usuários' },
+    { name: 'events', description: 'Endpoints de eventos' },
+    { name: 'Staff Members', description: 'Endpoints de staff members' },
+    {
+      name: 'Event Staff',
+      description: 'Endpoints de vínculo entre evento e staff',
+    },
+  ];
+
   SwaggerModule.setup('docs', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
