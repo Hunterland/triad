@@ -1,98 +1,245 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# TRIAD API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API backend do sistema **TRIAD**, voltada para gestão de eventos, autenticação, usuários e equipe de staff. O projeto está sendo construído com NestJS, Prisma e Swagger, com foco em organização modular, validação consistente e documentação clara da API.[web:568][web:531][conversation_history:1]
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Objetivo
 
-## Description
+A API centraliza as operações do sistema TRIAD, incluindo autenticação, gestão de usuários, gestão de eventos e gestão de staff do evento, com vínculos entre membros da equipe e eventos específicos.[file:428][conversation_history:1]
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Stack principal
 
-## Project setup
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- Swagger / OpenAPI
+- class-validator
+- class-transformer
+- JWT para autenticação[web:602][web:568][web:531]
+
+## Estrutura do projeto
 
 ```bash
-$ npm install
+src/
+├── auth/
+├── common/
+├── events/
+├── prisma/
+├── staff/
+│   ├── dto/
+│   ├── event-staff.controller.ts
+│   ├── event-staff.service.ts
+│   ├── staff-members.controller.ts
+│   ├── staff-members.service.ts
+│   └── staff.module.ts
+├── users/
+├── app.module.ts
+└── main.ts
 ```
 
-## Compile and run the project
+### Organização por módulo
+
+- `auth`: autenticação e login.
+- `users`: gerenciamento de usuários.
+- `events`: gerenciamento de eventos.
+- `staff`: gerenciamento de membros de staff e vínculo de staff por evento.
+- `prisma`: acesso ao banco e integração com Prisma Client.[conversation_history:1]
+
+## Funcionalidades atuais
+
+### Autenticação
+
+- Registro de usuário.
+- Login com autenticação JWT.[file:707]
+
+### Usuários
+
+- Listar usuários.
+- Buscar usuário por ID.
+- Atualizar usuário.
+- Desativar usuário.[file:682]
+
+### Eventos
+
+- Criar evento.
+- Listar eventos.
+- Buscar evento por ID.
+- Atualizar evento.
+- Desativar evento.[file:682]
+
+### Staff Members
+
+- Criar membro de staff.
+- Listar membros de staff.
+- Buscar membro de staff por ID.
+- Atualizar membro de staff.
+- Desativar membro de staff.[conversation_history:1][file:682]
+
+### Event Staff
+
+- Vincular membro de staff a um evento.
+- Listar staff de um evento.
+- Buscar vínculo específico de staff em um evento.
+- Atualizar vínculo de staff no evento.
+- Desativar vínculo de staff no evento.[conversation_history:1][file:682]
+
+## Modelagem de staff
+
+O módulo de staff foi modelado com duas entidades principais:[conversation_history:1]
+
+| Entidade | Papel |
+|---|---|
+| `StaffMember` | Representa a pessoa cadastrada no sistema. |
+| `EventStaff` | Representa o vínculo da pessoa com um evento e um papel específico. |
+
+Essa separação permite reutilizar a mesma pessoa em vários eventos e manter o histórico de atuação por papel, como `JUDGE`, `MC`, `DJ`, `ORGANIZER` e `STAFF_SUPPORT`.[conversation_history:1]
+
+## Padrões adotados
+
+### Validação
+
+As entradas da API usam DTOs com `class-validator` e `ValidationPipe` global com `whitelist`, `transform` e `forbidNonWhitelisted`, o que ajuda a rejeitar payloads inválidos e manter consistência dos dados.[web:502][web:531]
+
+### Documentação
+
+O projeto usa Swagger via `@nestjs/swagger` para documentar endpoints, DTOs e respostas, incluindo DTOs específicos de response para melhorar a visualização dos schemas.[web:568][web:712][conversation_history:1]
+
+### Soft delete
+
+Os módulos principais usam desativação lógica com `isActive: false` em vez de remoção física, o que preserva histórico e abre espaço para futura reativação de registros.[conversation_history:1][web:709][web:714]
+
+### Organização do Swagger
+
+A ordem de exibição das seções no Swagger foi controlada manualmente por meio de `document.tags` no `main.ts`, o que permite definir a ordem visual de tags como `auth`, `users`, `events`, `Staff Members` e `Event Staff`.[file:707]
+
+## Prisma
+
+O Prisma é responsável pela modelagem e acesso ao banco de dados, incluindo relacionamentos entre entidades e tratamento de constraints como unicidade em e-mail e vínculo único entre evento, staff member e papel.[web:602][web:642][conversation_history:1]
+
+### Fluxo comum com Prisma
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx prisma migrate dev --name nome-da-migration
+npx prisma generate
 ```
 
-## Run tests
+## Como rodar o projeto
+
+### 1. Instalar dependências
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
+### 2. Configurar variáveis de ambiente
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Criar um arquivo `.env` na raiz do projeto com as variáveis necessárias, especialmente a conexão com o banco de dados.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Exemplo:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/triad_db"
+JWT_SECRET="sua_chave_jwt"
+PORT=3000
+```
+
+### 3. Rodar migrations e gerar client
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma migrate dev
+npx prisma generate
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Executar em ambiente de desenvolvimento
 
-## Resources
+```bash
+npm run start:dev
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Documentação Swagger
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Com a aplicação rodando, a documentação fica disponível em:
 
-## Support
+```bash
+http://localhost:3000/docs
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Ela permite visualizar endpoints, testar requisições e autenticar via Bearer Token quando necessário.[web:568][web:712]
 
-## Stay in touch
+## Exemplos de endpoints
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Auth
 
-## License
+```http
+POST /auth/register
+POST /auth/login
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Users
+
+```http
+GET   /users
+GET   /users/{id}
+PATCH /users/{id}
+PATCH /users/{id}/deactivate
+```
+
+### Events
+
+```http
+POST  /events
+GET   /events
+GET   /events/{id}
+PATCH /events/{id}
+PATCH /events/{id}/deactivate
+```
+
+### Staff Members
+
+```http
+POST  /staff-members
+GET   /staff-members
+GET   /staff-members/{id}
+PATCH /staff-members/{id}
+PATCH /staff-members/{id}/deactivate
+```
+
+### Event Staff
+
+```http
+POST  /events/{eventId}/staff
+GET   /events/{eventId}/staff
+GET   /events/{eventId}/staff/{id}
+PATCH /events/{eventId}/staff/{id}
+PATCH /events/{eventId}/staff/{id}/deactivate
+```
+
+## DTOs de response
+
+O projeto passou a utilizar DTOs específicos para resposta, como:
+
+- `StaffMemberResponseDto`
+- `EventStaffResponseDto`
+- `EventSummaryResponseDto`
+
+Isso melhora a clareza dos contratos expostos no Swagger e ajuda a separar DTOs de entrada de DTOs de saída.[web:601][web:660][conversation_history:1]
+
+## Próximos passos sugeridos
+
+- Padronizar todas as tags do Swagger.
+- Adicionar filtros de listagem por `isActive` e `role`.
+- Criar endpoint de reativação para recursos com soft delete.
+- Evoluir regras de negócio para bloquear vínculos com evento ou staff inativo, se essa for a política do sistema.[conversation_history:1][web:709]
+
+## Qualidade e manutenção
+
+Algumas práticas já adotadas ou recomendadas no projeto:
+
+- uso de DTOs para validação e documentação;
+- services com tratamento de conflito e recurso não encontrado;
+- separação modular por domínio;
+- uso de DTOs de response para contratos mais claros;
+- documentação centralizada via Swagger.[web:531][web:712][conversation_history:1]
+
+## Observações finais
+
+Este backend está em evolução incremental, com foco em primeiro consolidar a base do domínio principal do sistema TRIAD e depois ampliar funcionalidades sem perder organização, previsibilidade e qualidade de documentação.[conversation_history:1][file:428]
