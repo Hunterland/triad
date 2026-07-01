@@ -27,6 +27,12 @@ enum StaffRole {
   STAFF_SUPPORT
 }
 
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // --------------------------------------------------
 // MODELS
 // --------------------------------------------------
@@ -34,11 +40,12 @@ enum StaffRole {
 model User {
   id          String  @id @default(uuid())
   email       String  @unique
-  password    String // hash (bcrypt) será armazenado aqui
+  password    String
   displayName String?
   isActive    Boolean @default(true)
 
-  roles UserRole[]
+  roles   UserRole[]
+  athlete Athlete?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,7 +69,7 @@ model UserRole {
 
   createdAt DateTime @default(now())
 
-  @@id([userId, roleId]) // um user não pode ter o mesmo role duas vezes
+  @@id([userId, roleId])
 }
 
 model Event {
@@ -76,6 +83,8 @@ model Event {
   isActive    Boolean   @default(true)
 
   staffAssignments EventStaff[]
+  categories       Category[]
+  participants     EventParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -123,4 +132,122 @@ model EventStaff {
   @@index([staffMemberId])
   @@index([role])
   @@map("event_staff")
+}
+
+// --------------------------------------------------
+// CATEGORY
+// --------------------------------------------------
+
+model Category {
+  id          String  @id @default(uuid())
+  eventId     String
+  name        String
+  slug        String
+  description String?
+  rules       String?
+  minAge      Int?
+  maxAge      Int?
+  level       String?
+  isTeam      Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations EventParticipant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, name])
+  @@unique([eventId, slug])
+  @@index([eventId])
+}
+
+// --------------------------------------------------
+// ATHLETE
+// --------------------------------------------------
+
+model Athlete {
+  id        String    @id @default(uuid())
+  userId    String?   @unique
+  name      String
+  stageName String?
+  email     String?   @unique
+  phone     String?
+  country   String?
+  city      String?
+  birthDate DateTime?
+  isActive  Boolean   @default(true)
+
+  user          User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  crews         CrewMember[]
+  registrations EventParticipant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --------------------------------------------------
+// CREW
+// --------------------------------------------------
+
+model Crew {
+  id       String  @id @default(uuid())
+  name     String
+  city     String?
+  country  String?
+  isActive Boolean @default(true)
+
+  members       CrewMember[]
+  registrations EventParticipant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+}
+
+// --------------------------------------------------
+// CREW MEMBER (pivot)
+// --------------------------------------------------
+
+model CrewMember {
+  crewId    String
+  athleteId String
+  role      String?
+
+  crew    Crew    @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@id([crewId, athleteId])
+  @@index([athleteId])
+}
+
+// --------------------------------------------------
+// EVENT PARTICIPANT / REGISTRATION
+// --------------------------------------------------
+
+model EventParticipant {
+  id         String             @id @default(uuid())
+  eventId    String
+  categoryId String
+  athleteId  String
+  crewId     String?
+  status     RegistrationStatus @default(PENDING)
+  isActive   Boolean            @default(true)
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  athlete  Athlete  @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  crew     Crew?    @relation(fields: [crewId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, categoryId, athleteId])
+  @@index([eventId])
+  @@index([categoryId])
+  @@index([athleteId])
+  @@index([status])
 }
