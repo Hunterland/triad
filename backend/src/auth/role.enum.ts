@@ -1,6 +1,0 @@
-export enum Role {
-  ADMIN = 'ADMIN',
-  ORGANIZER = 'ORGANIZER',
-  JUDGE = 'JUDGE',
-  COMPETITOR = 'COMPETITOR',
-}
