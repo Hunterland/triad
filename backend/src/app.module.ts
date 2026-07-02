@@ -8,7 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { StaffModule } from './staff/staff.module';
-
+import { CategoriesModule } from './categories/categories.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +20,7 @@ import { StaffModule } from './staff/staff.module';
     AuthModule,
     EventsModule,
     StaffModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
