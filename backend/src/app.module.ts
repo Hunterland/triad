@@ -10,6 +10,7 @@ import { EventsModule } from './events/events.module';
 import { StaffModule } from './staff/staff.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AthletesModule } from './athletes/athletes.module';
+import { CrewsModule } from './crews/crews.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -23,6 +24,7 @@ import { AthletesModule } from './athletes/athletes.module';
     StaffModule,
     CategoriesModule,
     AthletesModule,
+    CrewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
