@@ -192,7 +192,7 @@ model Athlete {
 
 model Crew {
   id       String  @id @default(uuid())
-  name     String
+  name     String  @unique
   city     String?
   country  String?
   isActive Boolean @default(true)
@@ -202,8 +202,6 @@ model Crew {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([name])
 }
 
 // --------------------------------------------------
@@ -222,6 +220,7 @@ model CrewMember {
 
   @@id([crewId, athleteId])
   @@index([athleteId])
+  @@index([crewId])
 }
 
 // --------------------------------------------------
