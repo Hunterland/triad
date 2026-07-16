@@ -11,6 +11,7 @@ import { StaffModule } from './staff/staff.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AthletesModule } from './athletes/athletes.module';
 import { CrewsModule } from './crews/crews.module';
+import { EventParticipantsModule } from './event-participants/event-participants.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +22,7 @@ import { CrewsModule } from './crews/crews.module';
     AuthModule,
     UsersModule,
     EventsModule,
+    EventParticipantsModule,
     StaffModule,
     CategoriesModule,
     AthletesModule,
