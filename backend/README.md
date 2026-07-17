@@ -1,64 +1,69 @@
-# TRIAD API
+# 🚀 TRIAD API
 
-API backend do sistema **TRIAD**, voltada para gestão de eventos, autenticação, usuários e equipe de staff. O projeto está sendo construído com NestJS, Prisma e Swagger, com foco em organização modular, validação consistente e documentação clara da API.
+API backend do sistema **TRIAD**, voltada para gestão de eventos competitivos de dança, autenticação, usuários, staff, categorias, atletas, crews e inscrições. O projeto está sendo construído com NestJS, Prisma e Swagger, com foco em organização modular, validação consistente, RBAC e documentação clara da API.
 
-## Objetivo
+## 🎯 Objetivo
 
-A API centraliza as operações do sistema TRIAD, incluindo autenticação, gestão de usuários, gestão de eventos e gestão de staff do evento, com vínculos entre membros da equipe e eventos específicos.
+A API centraliza as operações do sistema TRIAD, incluindo autenticação, gestão de usuários administrativos, gestão de eventos, gestão de staff do evento, categorias de batalha, atletas, crews e inscrições em categorias por evento.
 
-## Stack principal
+## 🧱 Stack principal
 
-- NestJS
-- Prisma ORM
-- PostgreSQL
-- Swagger / OpenAPI
-- class-validator
-- class-transformer
-- JWT para autenticação
+- ⚙️ NestJS
+- 🗃️ Prisma ORM
+- 🐘 PostgreSQL
+- 📘 Swagger / OpenAPI
+- ✅ class-validator
+- 🔄 class-transformer
+- 🔐 JWT para autenticação
+- 🛡️ Guards para autorização por papéis (RBAC)
 
-## Estrutura do projeto
+## 🗂️ Estrutura do projeto
 
 ```bash
 src/
 ├── auth/
 ├── common/
 ├── events/
+├── categories/
+├── athletes/
+├── crews/
+├── event-participants/
 ├── prisma/
 ├── staff/
-│   ├── dto/
-│   ├── event-staff.controller.ts
-│   ├── event-staff.service.ts
-│   ├── staff-members.controller.ts
-│   ├── staff-members.service.ts
-│   └── staff.module.ts
 ├── users/
 ├── app.module.ts
 └── main.ts
 ```
 
-### Organização por módulo
+## 🧩 Organização por módulo
 
-- `auth`: autenticação e login.
-- `users`: gerenciamento de usuários.
-- `events`: gerenciamento de eventos.
-- `staff`: gerenciamento de membros de staff e vínculo de staff por evento.
-- `prisma`: acesso ao banco e integração com Prisma Client.
+- 🔐 `auth`: autenticação, registro, login e emissão de token JWT.
+- 👤 `users`: gerenciamento de usuários administrativos.
+- 📅 `events`: gerenciamento de eventos.
+- 🎧 `staff`: gerenciamento de membros de staff e vínculo de staff por evento.
+- 🏷️ `categories`: gerenciamento de categorias de batalha por evento.
+- 🕺 `athletes`: gerenciamento de atletas.
+- 👥 `crews`: gerenciamento de crews e estrutura coletiva.
+- 📝 `event-participants`: inscrições de atletas em categorias de um evento.
+- 🗄️ `prisma`: acesso ao banco e integração com Prisma Client.
 
-## Funcionalidades atuais
+## ✅ Funcionalidades atuais
 
-### Autenticação
+### 🔐 Autenticação
 
 - Registro de usuário.
 - Login com autenticação JWT.
+- Proteção de rotas com Bearer Token.
+- Controle de acesso por papéis com RBAC.
 
-### Usuários
+### 👤 Usuários
 
 - Listar usuários.
 - Buscar usuário por ID.
 - Atualizar usuário.
 - Desativar usuário.
 
-### Eventos
+### 📅 Eventos
 
 - Criar evento.
 - Listar eventos.
@@ -66,7 +71,7 @@ src/
 - Atualizar evento.
 - Desativar evento.
 
-### Staff Members
+### 🎧 Staff Members
 
 - Criar membro de staff.
 - Listar membros de staff.
@@ -74,7 +79,7 @@ src/
 - Atualizar membro de staff.
 - Desativar membro de staff.
 
-### Event Staff
+### 🔗 Event Staff
 
 - Vincular membro de staff a um evento.
 - Listar staff de um evento.
@@ -82,7 +87,53 @@ src/
 - Atualizar vínculo de staff no evento.
 - Desativar vínculo de staff no evento.
 
-## Modelagem de staff
+### 🏷️ Categories
+
+- Criar categoria vinculada a evento.
+- Listar categorias.
+- Buscar categoria por ID.
+- Atualizar categoria.
+- Desativar categoria.
+
+### 🕺 Athletes
+
+- Criar atleta.
+- Listar atletas.
+- Buscar atleta por ID.
+- Atualizar atleta.
+- Desativar atleta.
+
+### 👥 Crews
+
+- Criar crew.
+- Listar crews.
+- Buscar crew por ID.
+- Atualizar crew.
+- Desativar crew.
+- Fluxo base preparado para suporte a participação coletiva.
+
+### 📝 Event Participants
+
+- Criar inscrição de atleta em categoria de evento.
+- Listar inscrições.
+- Buscar inscrição por ID.
+- Atualizar inscrição.
+- Cancelar inscrição.
+- Validar existência de evento, categoria, atleta e crew quando informada.
+- Bloquear inscrição duplicada do mesmo atleta na mesma categoria para o mesmo evento.
+
+## 📌 Estado atual do backend
+
+O backend já possui a base de autenticação, documentação e módulos principais de operação administrativa consolidada, com Swagger ativo e testes manuais realizados via interface da API.
+
+A `US3.1 — Inscrição em categorias` foi validada com sucesso no backend, incluindo:
+
+- 🔐 autenticação com JWT;
+- 🛡️ autorização por papéis;
+- ✅ criação de inscrição válida;
+- 🚫 bloqueio de duplicidade com retorno `409 Conflict`.
+
+## 🎭 Modelagem de staff
 
 O módulo de staff foi modelado com duas entidades principais:
 
@@ -93,44 +144,87 @@ O módulo de staff foi modelado com duas entidades principais:
 
 Essa separação permite reutilizar a mesma pessoa em vários eventos e manter o histórico de atuação por papel, como `JUDGE`, `MC`, `DJ`, `ORGANIZER` e `STAFF_SUPPORT`.
 
-## Padrões adotados
+## 🧾 Modelagem de inscrições
 
-### Validação
+O módulo `event-participants` representa a inscrição de um atleta em uma categoria de um evento, podendo opcionalmente referenciar uma `crew` quando aplicável.
 
-As entradas da API usam DTOs com `class-validator` e `ValidationPipe` global com `whitelist`, `transform` e `forbidNonWhitelisted`, o que ajuda a rejeitar payloads inválidos e manter consistência dos dados.
+A unicidade da inscrição considera a combinação de:
 
-### Documentação
+- 📅 evento
+- 🏷️ categoria
+- 🕺 atleta
+
+Isso evita duplicidade no processo de credenciamento.
+
+## 🧪 Padrões adotados
+
+### ✅ Validação
+
+As entradas da API usam DTOs com `class-validator` e `ValidationPipe` global com:
+
+- `whitelist`
+- `transform`
+- `forbidNonWhitelisted`
+
+Isso ajuda a rejeitar payloads inválidos e manter consistência dos dados.
+
+### 🔐 Autenticação e autorização
+
+A autenticação usa JWT, enquanto a autorização usa Guards e decorator de papéis para restringir endpoints administrativos a perfis autorizados, como `ADMIN` e `ORGANIZER`.
+
+Nos testes do módulo de inscrições:
+
+- `ATHLETE` recebeu `403 Forbidden`;
+- `ADMIN` acessou a listagem com `200 OK`.
+
+Isso confirmou o funcionamento do RBAC.
+
+### 📘 Documentação
 
 O projeto usa Swagger via `@nestjs/swagger` para documentar endpoints, DTOs e respostas, incluindo DTOs específicos de response para melhorar a visualização dos schemas.
 
-### Soft delete
+### ♻️ Soft delete
 
 Os módulos principais usam desativação lógica com `isActive: false` em vez de remoção física, o que preserva histórico e abre espaço para futura reativação de registros.
 
-### Organização do Swagger
+### 🧭 Organização do Swagger
 
-A ordem de exibição das seções no Swagger foi controlada manualmente por meio de `document.tags` no `main.ts`, o que permite definir a ordem visual de tags como `auth`, `users`, `events`, `Staff Members` e `Event Staff`.
+A documentação está organizada por tags de domínio, permitindo navegação por módulos como:
 
-## Prisma
+- `auth`
+- `users`
+- `events`
+- `staff-members`
+- `event-staff`
+- `event-participants`
+- `categories`
+- `athletes`
+- `crews`
 
-O Prisma é responsável pela modelagem e acesso ao banco de dados, incluindo relacionamentos entre entidades e tratamento de constraints como unicidade em e-mail e vínculo único entre evento, staff member e papel.
+## 🗃️ Prisma
 
-### Fluxo comum com Prisma
+O Prisma é responsável pela modelagem e acesso ao banco de dados, incluindo relacionamentos entre entidades e tratamento de constraints como:
+
+- unicidade em e-mail;
+- vínculos por evento;
+- unicidade da inscrição por atleta, categoria e evento.
+
+### 🔄 Fluxo comum com Prisma
 
 ```bash
 npx prisma migrate dev --name nome-da-migration
 npx prisma generate
 ```
 
-## Como rodar o projeto
+## ▶️ Como rodar o projeto
 
-### 1. Instalar dependências
+### 1️⃣ Instalar dependências
 
 ```bash
 npm install
 ```
 
-### 2. Configurar variáveis de ambiente
+### 2️⃣ Configurar variáveis de ambiente
 
 Criar um arquivo `.env` na raiz do projeto com as variáveis necessárias, especialmente a conexão com o banco de dados.
 
@@ -142,20 +236,20 @@ JWT_SECRET="sua_chave_jwt"
 PORT=3000
 ```
 
-### 3. Rodar migrations e gerar client
+### 3️⃣ Rodar migrations e gerar client
 
 ```bash
 npx prisma migrate dev
 npx prisma generate
 ```
 
-### 4. Executar em ambiente de desenvolvimento
+### 4️⃣ Executar em ambiente de desenvolvimento
 
 ```bash
 npm run start:dev
 ```
 
-## Documentação Swagger
+## 📚 Documentação Swagger
 
 Com a aplicação rodando, a documentação fica disponível em:
 
@@ -163,18 +257,22 @@ Com a aplicação rodando, a documentação fica disponível em:
 http://localhost:3000/docs
 ```
 
-Ela permite visualizar endpoints, testar requisições e autenticar via Bearer Token quando necessário.
+A interface permite:
 
-## Exemplos de endpoints
+- 👀 visualizar endpoints;
+- 🧪 testar requisições;
+- 🔑 autenticar via Bearer Token quando necessário.
 
-### Auth
+## 🌐 Exemplos de endpoints
+
+### 🔐 Auth
 
 ```http
 POST /auth/register
 POST /auth/login
 ```
 
-### Users
+### 👤 Users
 
 ```http
 GET   /users
@@ -183,7 +281,7 @@ PATCH /users/{id}
 PATCH /users/{id}/deactivate
 ```
 
-### Events
+### 📅 Events
 
 ```http
 POST  /events
@@ -193,7 +291,7 @@ PATCH /events/{id}
 PATCH /events/{id}/deactivate
 ```
 
-### Staff Members
+### 🎧 Staff Members
 
 ```http
 POST  /staff-members
@@ -203,7 +301,7 @@ PATCH /staff-members/{id}
 PATCH /staff-members/{id}/deactivate
 ```
 
-### Event Staff
+### 🔗 Event Staff
 
 ```http
 POST  /events/{eventId}/staff
@@ -213,33 +311,84 @@ PATCH /events/{eventId}/staff/{id}
 PATCH /events/{eventId}/staff/{id}/deactivate
 ```
 
-## DTOs de response
+### 🏷️ Categories
 
-O projeto passou a utilizar DTOs específicos para resposta, como:
+```http
+POST  /categories
+GET   /categories
+GET   /categories/{id}
+PATCH /categories/{id}
+PATCH /categories/{id}/deactivate
+```
 
-- `StaffMemberResponseDto`
-- `EventStaffResponseDto`
-- `EventSummaryResponseDto`
+### 🕺 Athletes
 
-Isso melhora a clareza dos contratos expostos no Swagger e ajuda a separar DTOs de entrada de DTOs de saída.
+```http
+POST  /athletes
+GET   /athletes
+GET   /athletes/{id}
+PATCH /athletes/{id}
+PATCH /athletes/{id}/deactivate
+```
 
-## Próximos passos sugeridos
+### 👥 Crews
 
-- Padronizar todas as tags do Swagger.
-- Adicionar filtros de listagem por `isActive` e `role`.
-- Criar endpoint de reativação para recursos com soft delete.
-- Evoluir regras de negócio para bloquear vínculos com evento ou staff inativo, se essa for a política do sistema.
+```http
+POST  /crews
+GET   /crews
+GET   /crews/{id}
+PATCH /crews/{id}
+PATCH /crews/{id}/deactivate
+```
 
-## Qualidade e manutenção
+### 📝 Event Participants
 
-Algumas práticas já adotadas ou recomendadas no projeto:
+```http
+POST  /event-participants
+GET   /event-participants
+GET   /event-participants/{id}
+PATCH /event-participants/{id}
+PATCH /event-participants/{id}/cancel
+```
+
+## 📦 DTOs de response
+
+O projeto utiliza DTOs específicos para resposta em partes da API para tornar os contratos mais claros no Swagger e separar DTOs de entrada de DTOs de saída.
+
+Esse padrão deve continuar sendo expandido para os módulos novos à medida que o backend evolui.
+
+## ✅ Testes manuais já validados
+
+Os fluxos abaixo já foram validados manualmente via Swagger:
+
+- 🔐 login com JWT;
+- 🛡️ proteção de rotas com Bearer Token;
+- 👮 RBAC com perfis distintos;
+- 📋 listagem de inscrições com `ADMIN`;
+- 🚫 bloqueio de acesso de `ATHLETE` em rota administrativa;
+- 🕺 criação de atleta;
+- 📝 criação de inscrição válida em `event-participants`;
+- ⛔ bloqueio de inscrição duplicada com `409 Conflict`.
+  
+
+## 🧰 Qualidade e manutenção
+
+Práticas adotadas ou recomendadas no projeto:
 
 - uso de DTOs para validação e documentação;
 - services com tratamento de conflito e recurso não encontrado;
 - separação modular por domínio;
-- uso de DTOs de response para contratos mais claros;
+- uso de JWT + RBAC;
+- soft delete para preservar histórico;
 - documentação centralizada via Swagger.
 
-## Observações finais
+## 📝 Observações finais
 
-Este backend está em evolução incremental, com foco em primeiro consolidar a base do domínio principal do sistema TRIAD e depois ampliar funcionalidades sem perder organização, previsibilidade e qualidade de documentação.
+Este backend está em evolução incremental, com foco em consolidar primeiro a base operacional e os módulos centrais do domínio TRIAD.
+
+No estado atual, já estão funcionalmente estabelecidos no backend:
+
+- 🔐 autenticação;
+- 🛡️ RBAC;
+- 🧩 gestão administrativa principal;
+- 📝 fluxo inicial de inscrições.
