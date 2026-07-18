@@ -17,6 +17,7 @@ import {
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -25,6 +26,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CreateEventParticipantDto } from './dto/create-event-participant.dto';
 import { UpdateEventParticipantDto } from './dto/update-event-participant.dto';
 import { EventParticipantsService } from './event-participants.service';
+import { EventParticipantResponseDto } from './dto/event-participant-response.dto';
 
 @ApiTags('event-participants')
 @ApiBearerAuth('Bearer')
@@ -44,6 +46,7 @@ export class EventParticipantsController {
   @ApiNotFoundResponse({
     description: 'Evento, categoria, atleta ou crew não encontrada',
   })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Post()
   create(@Body() dto: CreateEventParticipantDto) {
@@ -51,7 +54,11 @@ export class EventParticipantsController {
   }
 
   @ApiOperation({ summary: 'Listar inscrições' })
-  @ApiOkResponse({ description: 'Lista de inscrições' })
+  @ApiOkResponse({
+    description: 'Lista de inscrições',
+    type: EventParticipantResponseDto,
+    isArray: true,
+  })
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Get()
   findAll() {
@@ -60,6 +67,7 @@ export class EventParticipantsController {
 
   @ApiOperation({ summary: 'Buscar inscrição por ID' })
   @ApiNotFoundResponse({ description: 'Inscrição não encontrada' })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -68,14 +76,46 @@ export class EventParticipantsController {
 
   @ApiOperation({ summary: 'Atualizar inscrição' })
   @ApiNotFoundResponse({ description: 'Inscrição não encontrada' })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateEventParticipantDto) {
     return this.eventParticipantsService.update(id, dto);
   }
 
+  @ApiOperation({ summary: 'Aprovar inscrição' })
+  @ApiNotFoundResponse({ description: 'Inscrição não encontrada' })
+  @ApiConflictResponse({
+    description: 'Inscrição em estado inválido para aprovação',
+  })
+  @ApiBadRequestResponse({
+    description: 'Evento ou categoria inativos',
+  })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
+  @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
+  @Patch(':id/approve')
+  approve(@Param('id') id: string) {
+    return this.eventParticipantsService.approve(id);
+  }
+
+  @ApiOperation({ summary: 'Reprovar inscrição' })
+  @ApiNotFoundResponse({ description: 'Inscrição não encontrada' })
+  @ApiConflictResponse({
+    description: 'Inscrição em estado inválido para reprovação',
+  })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
+  @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
+  @Patch(':id/reject')
+  reject(@Param('id') id: string) {
+    return this.eventParticipantsService.reject(id);
+  }
+
   @ApiOperation({ summary: 'Cancelar inscrição' })
   @ApiNotFoundResponse({ description: 'Inscrição não encontrada' })
+  @ApiConflictResponse({
+    description: 'Inscrição em estado inválido para cancelamento',
+  })
+  @ApiOkResponse({ type: EventParticipantResponseDto })
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @Patch(':id/cancel')
   cancel(@Param('id') id: string) {
