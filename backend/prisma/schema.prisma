@@ -34,6 +34,24 @@ enum RegistrationStatus {
   CANCELLED
 }
 
+enum BracketType {
+  TOP8
+  TOP16
+}
+
+enum BattlePhase {
+  ROUND_OF_16
+  QUARTER_FINAL
+  SEMI_FINAL
+  FINAL
+}
+
+enum BattleStatus {
+  PENDING
+  ONGOING
+  FINISHED
+}
+
 // --------------------------------------------------
 // MODELS
 // --------------------------------------------------
@@ -86,6 +104,7 @@ model Event {
   staffAssignments EventStaff[]
   categories       Category[]
   participants     EventParticipant[]
+  brackets         Bracket[] // chaves do evento
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -154,6 +173,7 @@ model Category {
 
   event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   registrations EventParticipant[]
+  brackets      Bracket[] // chaves por categoria
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -227,6 +247,7 @@ model CrewMember {
 // --------------------------------------------------
 // EVENT PARTICIPANT / REGISTRATION
 // --------------------------------------------------
+
 model EventParticipant {
   id         String             @id @default(uuid())
   eventId    String
@@ -250,4 +271,50 @@ model EventParticipant {
   @@index([athleteId])
   @@index([status])
   @@index([eventId, status])
+}
+
+// --------------------------------------------------
+// BRACKETS
+// --------------------------------------------------
+
+model Bracket {
+  id         String      @id @default(uuid())
+  eventId    String
+  categoryId String
+  type       BracketType // TOP8 ou TOP16
+  name       String
+  isActive   Boolean     @default(true)
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  battles  Battle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Um tipo de chave por evento+categoria (v1)
+  @@unique([eventId, categoryId, type])
+  @@index([eventId])
+  @@index([categoryId])
+}
+
+// --------------------------------------------------
+// BATTLES
+// --------------------------------------------------
+
+model Battle {
+  id        String       @id @default(uuid())
+  bracketId String
+  phase     BattlePhase // ROUND_OF_16, QUARTER_FINAL, SEMI_FINAL, FINAL
+  order     Int // posição dentro da fase (1..N)
+  status    BattleStatus @default(PENDING) // PENDING, ONGOING, FINISHED
+  isActive  Boolean      @default(true)
+
+  bracket Bracket @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bracketId])
+  @@index([phase])
 }
