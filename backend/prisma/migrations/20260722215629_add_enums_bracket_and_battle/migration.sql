@@ -1,9 +1,18 @@
+-- CreateEnum
+CREATE TYPE "BracketType" AS ENUM ('TOP8', 'TOP16');
+
+-- CreateEnum
+CREATE TYPE "BattlePhase" AS ENUM ('ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL');
+
+-- CreateEnum
+CREATE TYPE "BattleStatus" AS ENUM ('PENDING', 'ONGOING', 'FINISHED');
+
 -- CreateTable
 CREATE TABLE "Bracket" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "categoryId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
+    "type" "BracketType" NOT NULL,
     "name" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -16,9 +25,9 @@ CREATE TABLE "Bracket" (
 CREATE TABLE "Battle" (
     "id" TEXT NOT NULL,
     "bracketId" TEXT NOT NULL,
-    "phase" TEXT NOT NULL,
+    "phase" "BattlePhase" NOT NULL,
     "order" INTEGER NOT NULL,
-    "status" TEXT NOT NULL,
+    "status" "BattleStatus" NOT NULL DEFAULT 'PENDING',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

@@ -12,6 +12,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { AthletesModule } from './athletes/athletes.module';
 import { CrewsModule } from './crews/crews.module';
 import { EventParticipantsModule } from './event-participants/event-participants.module';
+import { BracketsModule } from './brackets/brackets.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -27,6 +28,7 @@ import { EventParticipantsModule } from './event-participants/event-participants
     CategoriesModule,
     AthletesModule,
     CrewsModule,
+    BracketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
