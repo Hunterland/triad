@@ -42,6 +42,27 @@ async function bootstrap() {
       name: 'Event Staff',
       description: 'Endpoints de vínculo entre evento e staff',
     },
+    {
+      name: 'event-participants',
+      description: 'Endpoints de vínculo entre evento e participante',
+    },
+    {
+      name: 'categories',
+      description:
+        'Endpoints de categorias de eventos (Ex: Adulto, Juvenil, etc.)',
+    },
+    {
+      name: 'athletes',
+      description: 'Endpoints de atletas (pessoas que participam de eventos)',
+    },
+    {
+      name: 'crews',
+      description: 'Endpoints de equipes (grupos de atletas que competem)',
+    },
+    {
+      name: 'Brackets',
+      description: 'Endpoints de chaves de eventos (Ex: TOP8, TOP16, etc.)',
+    },
   ];
 
   SwaggerModule.setup('docs', app, document);

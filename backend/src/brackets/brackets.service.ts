@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBracketDto } from './dto/create-bracket.dto';
+import { BracketViewResponseDto } from './dto/bracket-view-response.dto';
 
 @Injectable()
 export class BracketsService {
@@ -152,7 +153,10 @@ export class BracketsService {
     });
   }
 
-  async findByEventAndCategory(eventId: string, categoryId: string) {
+  async findByEventAndCategory(
+    eventId: string,
+    categoryId: string,
+  ): Promise<BracketViewResponseDto> {
     const bracket = await this.prisma.bracket.findFirst({
       where: {
         eventId,
@@ -174,6 +178,50 @@ export class BracketsService {
       );
     }
 
-    return bracket;
+    return {
+      bracket: {
+        id: bracket.id,
+        eventId: bracket.eventId,
+        categoryId: bracket.categoryId,
+        type: bracket.type,
+        name: bracket.name,
+        isActive: bracket.isActive,
+        createdAt: bracket.createdAt,
+        updatedAt: bracket.updatedAt,
+      },
+      event: {
+        id: bracket.event.id,
+        name: bracket.event.name,
+        slug: bracket.event.slug,
+        description: bracket.event.description,
+        location: bracket.event.location,
+        startDate: bracket.event.startDate,
+        endDate: bracket.event.endDate,
+        isActive: bracket.event.isActive,
+      },
+      category: {
+        id: bracket.category.id,
+        eventId: bracket.category.eventId,
+        name: bracket.category.name,
+        slug: bracket.category.slug,
+        description: bracket.category.description,
+        rules: bracket.category.rules,
+        minAge: bracket.category.minAge,
+        maxAge: bracket.category.maxAge,
+        level: bracket.category.level,
+        isTeam: bracket.category.isTeam,
+        isActive: bracket.category.isActive,
+      },
+      battles: bracket.battles.map((battle) => ({
+        id: battle.id,
+        bracketId: battle.bracketId,
+        phase: battle.phase,
+        order: battle.order,
+        status: battle.status,
+        isActive: battle.isActive,
+        createdAt: battle.createdAt,
+        updatedAt: battle.updatedAt,
+      })),
+    };
   }
 }
