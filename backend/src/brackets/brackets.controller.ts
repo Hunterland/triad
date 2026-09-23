@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import {
@@ -14,11 +15,12 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
+import { BattleStatus, RoleName } from '@prisma/client';
 import { Roles } from '../auth/roles.decorator';
 import { BracketsService } from './brackets.service';
-import { CreateBracketDto } from './dto/create-bracket.dto';
 import { BracketViewResponseDto } from './dto/bracket-view-response.dto';
+import { CreateBracketDto } from './dto/create-bracket.dto';
+import { UpdateBattleStatusDto } from './dto/update-battle-status.dto';
 
 @ApiTags('Brackets')
 @Controller('brackets')
@@ -62,5 +64,34 @@ export class BracketsController {
     @Param('categoryId', new ParseUUIDPipe()) categoryId: string,
   ): Promise<BracketViewResponseDto> {
     return this.bracketsService.findByEventAndCategory(eventId, categoryId);
+  }
+
+  @Patch('battles/:battleId/status')
+  @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
+  @ApiOperation({
+    summary: 'Atualizar status de uma batalha',
+    description:
+      'Atualiza o status operacional da batalha. Transições permitidas: PENDING → ONGOING → FINISHED.',
+  })
+  @ApiParam({
+    name: 'battleId',
+    description: 'ID da batalha',
+    example: 'ad0d9407-8e2d-4550-a62c-80b4de576a11',
+  })
+  @ApiOkResponse({
+    description: 'Status da batalha atualizado com sucesso.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'ID inválido, status inválido ou transição de status não permitida.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Batalha não encontrada ou inativa.',
+  })
+  updateBattleStatus(
+    @Param('battleId', new ParseUUIDPipe()) battleId: string,
+    @Body() dto: UpdateBattleStatusDto,
+  ) {
+    return this.bracketsService.updateBattleStatus(battleId, dto.status);
   }
 }

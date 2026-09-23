@@ -1,4 +1,3 @@
-// src/brackets/brackets.service.ts
 import {
   BadRequestException,
   ConflictException,
@@ -12,8 +11,8 @@ import {
   RegistrationStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateBracketDto } from './dto/create-bracket.dto';
 import { BracketViewResponseDto } from './dto/bracket-view-response.dto';
+import { CreateBracketDto } from './dto/create-bracket.dto';
 
 @Injectable()
 export class BracketsService {
@@ -223,5 +222,37 @@ export class BracketsService {
         updatedAt: battle.updatedAt,
       })),
     };
+  }
+
+  async updateBattleStatus(battleId: string, newStatus: BattleStatus) {
+    const battle = await this.prisma.battle.findFirst({
+      where: {
+        id: battleId,
+        isActive: true,
+      },
+    });
+
+    if (!battle) {
+      throw new NotFoundException('Batalha não encontrada ou inativa.');
+    }
+
+    const allowedTransitions: Record<BattleStatus, BattleStatus[]> = {
+      [BattleStatus.PENDING]: [BattleStatus.ONGOING],
+      [BattleStatus.ONGOING]: [BattleStatus.FINISHED],
+      [BattleStatus.FINISHED]: [],
+    };
+
+    const allowedNextStatuses = allowedTransitions[battle.status];
+
+    if (!allowedNextStatuses.includes(newStatus)) {
+      throw new BadRequestException(
+        `Transição de status não permitida: ${battle.status} → ${newStatus}.`,
+      );
+    }
+
+    return this.prisma.battle.update({
+      where: { id: battle.id },
+      data: { status: newStatus },
+    });
   }
 }
