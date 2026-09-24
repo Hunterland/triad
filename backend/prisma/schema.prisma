@@ -52,6 +52,12 @@ enum BattleStatus {
   FINISHED
 }
 
+enum RoundStatus {
+  PENDING
+  ONGOING
+  FINISHED
+}
+
 // --------------------------------------------------
 // MODELS
 // --------------------------------------------------
@@ -104,7 +110,7 @@ model Event {
   staffAssignments EventStaff[]
   categories       Category[]
   participants     EventParticipant[]
-  brackets         Bracket[] // chaves do evento
+  brackets         Bracket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,7 +179,7 @@ model Category {
 
   event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   registrations EventParticipant[]
-  brackets      Bracket[] // chaves por categoria
+  brackets      Bracket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -281,7 +287,7 @@ model Bracket {
   id         String      @id @default(uuid())
   eventId    String
   categoryId String
-  type       BracketType // TOP8 ou TOP16
+  type       BracketType
   name       String
   isActive   Boolean     @default(true)
 
@@ -305,16 +311,38 @@ model Bracket {
 model Battle {
   id        String       @id @default(uuid())
   bracketId String
-  phase     BattlePhase // ROUND_OF_16, QUARTER_FINAL, SEMI_FINAL, FINAL
-  order     Int // posição dentro da fase (1..N)
-  status    BattleStatus @default(PENDING) // PENDING, ONGOING, FINISHED
+  phase     BattlePhase
+  order     Int
+  status    BattleStatus @default(PENDING)
   isActive  Boolean      @default(true)
 
   bracket Bracket @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  rounds  Round[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([bracketId])
   @@index([phase])
+}
+
+// --------------------------------------------------
+// ROUNDS
+// --------------------------------------------------
+
+model Round {
+  id       String      @id @default(uuid())
+  battleId String
+  order    Int
+  status   RoundStatus @default(PENDING)
+  isActive Boolean     @default(true)
+
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([battleId, order])
+  @@index([battleId])
+  @@index([status])
 }

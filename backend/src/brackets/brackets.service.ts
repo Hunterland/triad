@@ -1,3 +1,4 @@
+// src/brackets/brackets.service.ts
 import {
   BadRequestException,
   ConflictException,
@@ -9,10 +10,12 @@ import {
   BattleStatus,
   BracketType,
   RegistrationStatus,
+  RoundStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BracketViewResponseDto } from './dto/bracket-view-response.dto';
 import { CreateBracketDto } from './dto/create-bracket.dto';
+import { RoundResponseDto } from './dto/round-response.dto';
 
 @Injectable()
 export class BracketsService {
@@ -254,5 +257,104 @@ export class BracketsService {
       where: { id: battle.id },
       data: { status: newStatus },
     });
+  }
+
+  async createRounds(
+    battleId: string,
+    quantity: number,
+  ): Promise<RoundResponseDto[]> {
+    const battle = await this.prisma.battle.findFirst({
+      where: {
+        id: battleId,
+        isActive: true,
+      },
+    });
+
+    if (!battle) {
+      throw new NotFoundException('Batalha não encontrada ou inativa.');
+    }
+
+    if (battle.status !== BattleStatus.PENDING) {
+      throw new BadRequestException(
+        'Só é possível criar rounds para uma batalha com status PENDING.',
+      );
+    }
+
+    const existingRounds = await this.prisma.round.count({
+      where: {
+        battleId,
+        isActive: true,
+      },
+    });
+
+    if (existingRounds > 0) {
+      throw new ConflictException('A batalha já possui rounds ativos.');
+    }
+
+    const roundsData = Array.from({ length: quantity }, (_, index) => ({
+      battleId,
+      order: index + 1,
+      status: RoundStatus.PENDING,
+      isActive: true,
+    }));
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.round.createMany({
+        data: roundsData,
+      });
+
+      const rounds = await tx.round.findMany({
+        where: {
+          battleId,
+          isActive: true,
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      });
+
+      return rounds.map((round) => ({
+        id: round.id,
+        battleId: round.battleId,
+        order: round.order,
+        status: round.status,
+        isActive: round.isActive,
+        createdAt: round.createdAt,
+        updatedAt: round.updatedAt,
+      }));
+    });
+  }
+
+  async findRoundsByBattle(battleId: string): Promise<RoundResponseDto[]> {
+    const battle = await this.prisma.battle.findFirst({
+      where: {
+        id: battleId,
+        isActive: true,
+      },
+    });
+
+    if (!battle) {
+      throw new NotFoundException('Batalha não encontrada ou inativa.');
+    }
+
+    const rounds = await this.prisma.round.findMany({
+      where: {
+        battleId,
+        isActive: true,
+      },
+      orderBy: {
+        order: 'asc',
+      },
+    });
+
+    return rounds.map((round) => ({
+      id: round.id,
+      battleId: round.battleId,
+      order: round.order,
+      status: round.status,
+      isActive: round.isActive,
+      createdAt: round.createdAt,
+      updatedAt: round.updatedAt,
+    }));
   }
 }
