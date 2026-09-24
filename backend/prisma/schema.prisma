@@ -147,8 +147,9 @@ model EventStaff {
   isLead        Boolean   @default(false)
   isActive      Boolean   @default(true)
 
-  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Restrict)
+  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffMember      StaffMember       @relation(fields: [staffMemberId], references: [id], onDelete: Restrict)
+  judgeAssignments JudgeAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,9 +178,10 @@ model Category {
   isTeam      Boolean @default(false)
   isActive    Boolean @default(true)
 
-  event         Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  registrations EventParticipant[]
-  brackets      Bracket[]
+  event            Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations    EventParticipant[]
+  brackets         Bracket[]
+  judgeAssignments JudgeAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -345,4 +347,26 @@ model Round {
   @@unique([battleId, order])
   @@index([battleId])
   @@index([status])
+}
+
+// --------------------------------------------------
+// JUDGE ASSIGNMENTS
+// --------------------------------------------------
+
+model JudgeAssignment {
+  id           String  @id @default(uuid())
+  eventStaffId String
+  categoryId   String
+  isActive     Boolean @default(true)
+
+  eventStaff EventStaff @relation(fields: [eventStaffId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventStaffId, categoryId])
+  @@index([eventStaffId])
+  @@index([categoryId])
+  @@map("judge_assignments")
 }

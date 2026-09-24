@@ -13,6 +13,7 @@ import { AthletesModule } from './athletes/athletes.module';
 import { CrewsModule } from './crews/crews.module';
 import { EventParticipantsModule } from './event-participants/event-participants.module';
 import { BracketsModule } from './brackets/brackets.module';
+import { JudgeAssignmentsModule } from './judge-assignments/judge-assignments.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +30,7 @@ import { BracketsModule } from './brackets/brackets.module';
     AthletesModule,
     CrewsModule,
     BracketsModule,
+    JudgeAssignmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
