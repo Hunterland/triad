@@ -58,6 +58,24 @@ enum RoundStatus {
   FINISHED
 }
 
+enum JudgingInterfaceType {
+  LEVEL_A
+  LEVEL_B
+  TRIAD
+  CUSTOM
+}
+
+enum JudgingConfigurationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum JudgingPurpose {
+  BATTLE
+  PRESELECTION
+}
+
 // --------------------------------------------------
 // MODELS
 // --------------------------------------------------
@@ -178,10 +196,11 @@ model Category {
   isTeam      Boolean @default(false)
   isActive    Boolean @default(true)
 
-  event            Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  registrations    EventParticipant[]
-  brackets         Bracket[]
-  judgeAssignments JudgeAssignment[]
+  event                 Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations         EventParticipant[]
+  brackets              Bracket[]
+  judgeAssignments      JudgeAssignment[]
+  judgingConfigurations JudgingConfiguration[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -369,4 +388,57 @@ model JudgeAssignment {
   @@index([eventStaffId])
   @@index([categoryId])
   @@map("judge_assignments")
+}
+
+// --------------------------------------------------
+// JUDGING CONFIGURATIONS
+// --------------------------------------------------
+
+model JudgingConfiguration {
+  id            String                     @id @default(uuid())
+  categoryId    String
+  name          String
+  interfaceType JudgingInterfaceType
+  purpose       JudgingPurpose             @default(BATTLE)
+  status        JudgingConfigurationStatus @default(DRAFT)
+  version       Int                        @default(1)
+  isActive      Boolean                    @default(true)
+
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  criteria JudgeCriterion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, purpose, version])
+  @@index([categoryId, purpose])
+  @@index([status])
+  @@map("judging_configurations")
+}
+
+// --------------------------------------------------
+// JUDGE CRITERIA
+// --------------------------------------------------
+
+model JudgeCriterion {
+  id                     String  @id @default(uuid())
+  judgingConfigurationId String
+  code                   String
+  name                   String
+  description            String?
+  weight                 Decimal @db.Decimal(5, 2)
+  order                  Int
+  minScore               Decimal @default(0) @db.Decimal(5, 2)
+  maxScore               Decimal @default(10) @db.Decimal(5, 2)
+  isActive               Boolean @default(true)
+
+  judgingConfiguration JudgingConfiguration @relation(fields: [judgingConfigurationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([judgingConfigurationId, code])
+  @@unique([judgingConfigurationId, order])
+  @@index([judgingConfigurationId])
+  @@map("judge_criteria")
 }

@@ -14,6 +14,7 @@ import { CrewsModule } from './crews/crews.module';
 import { EventParticipantsModule } from './event-participants/event-participants.module';
 import { BracketsModule } from './brackets/brackets.module';
 import { JudgeAssignmentsModule } from './judge-assignments/judge-assignments.module';
+import { JudgingConfigurationsModule } from './judging-configurations/judging-configurations.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -31,6 +32,7 @@ import { JudgeAssignmentsModule } from './judge-assignments/judge-assignments.mo
     CrewsModule,
     BracketsModule,
     JudgeAssignmentsModule,
+    JudgingConfigurationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
