@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateJudgeScorecardDto } from './dto/create-judge-scorecard.dto';
 import { CreateJudgeCriterionScoreDto } from './dto/create-judge-criterion-score.dto';
+import { UpdateJudgeCriterionScoreDto } from './dto/update-judge-criterion-score.dto';
 
 @Injectable()
 export class JudgeScorecardService {
@@ -222,6 +223,381 @@ export class JudgeScorecardService {
 
       throw error;
     }
+  }
+
+  async findOne(scorecardId: string) {
+    const scorecard = await this.prisma.judgeScorecard.findFirst({
+      where: {
+        id: scorecardId,
+        isActive: true,
+      },
+      include: {
+        judgeAssignment: {
+          include: {
+            eventStaff: {
+              include: {
+                staffMember: true,
+              },
+            },
+          },
+        },
+        round: {
+          include: {
+            battle: {
+              include: {
+                bracket: {
+                  include: {
+                    event: true,
+                    category: true,
+                  },
+                },
+                competitors: {
+                  where: { isActive: true },
+                  orderBy: { side: 'asc' },
+                  include: {
+                    eventParticipant: {
+                      include: {
+                        athlete: true,
+                        crew: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        judgingConfiguration: {
+          include: {
+            criteria: {
+              where: { isActive: true },
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+        criterionScores: {
+          include: {
+            battleCompetitor: {
+              include: {
+                eventParticipant: {
+                  include: {
+                    athlete: true,
+                    crew: true,
+                  },
+                },
+              },
+            },
+            judgeCriterion: true,
+          },
+          orderBy: [
+            {
+              battleCompetitor: {
+                side: 'asc',
+              },
+            },
+            {
+              judgeCriterion: {
+                order: 'asc',
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    if (!scorecard) {
+      throw new NotFoundException('Scorecard não encontrado ou inativo.');
+    }
+
+    return scorecard;
+  }
+
+  async updateCriterionScore(
+    scorecardId: string,
+    criterionScoreId: string,
+    dto: UpdateJudgeCriterionScoreDto,
+  ) {
+    const scorecard = await this.prisma.judgeScorecard.findFirst({
+      where: {
+        id: scorecardId,
+        isActive: true,
+      },
+      include: {
+        judgingConfiguration: {
+          include: {
+            criteria: {
+              where: { isActive: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!scorecard) {
+      throw new NotFoundException('Scorecard não encontrado ou inativo.');
+    }
+
+    if (scorecard.status !== 'DRAFT') {
+      throw new ConflictException(
+        'Não é possível alterar notas de um scorecard submetido.',
+      );
+    }
+
+    const criterionScore = await this.prisma.judgeCriterionScore.findFirst({
+      where: {
+        id: criterionScoreId,
+        judgeScorecardId: scorecard.id,
+      },
+      include: {
+        judgeCriterion: true,
+        battleCompetitor: true,
+      },
+    });
+
+    if (!criterionScore) {
+      throw new NotFoundException(
+        'Nota não encontrada para o scorecard informado.',
+      );
+    }
+
+    if (
+      criterionScore.judgeCriterion.judgingConfigurationId !==
+      scorecard.judgingConfigurationId
+    ) {
+      throw new BadRequestException(
+        'O critério da nota não pertence à configuração do scorecard.',
+      );
+    }
+
+    const min = Number(criterionScore.judgeCriterion.minScore);
+    const max = Number(criterionScore.judgeCriterion.maxScore);
+
+    if (dto.score < min || dto.score > max) {
+      throw new BadRequestException(
+        `A nota do critério ${criterionScore.judgeCriterion.code} deve estar entre ${min} e ${max}.`,
+      );
+    }
+
+    return this.prisma.judgeCriterionScore.update({
+      where: {
+        id: criterionScore.id,
+      },
+      data: {
+        score: new Prisma.Decimal(dto.score),
+      },
+      include: {
+        battleCompetitor: {
+          include: {
+            eventParticipant: {
+              include: {
+                athlete: true,
+                crew: true,
+              },
+            },
+          },
+        },
+        judgeCriterion: true,
+        judgeScorecard: {
+          select: {
+            id: true,
+            status: true,
+            roundId: true,
+          },
+        },
+      },
+    });
+  }
+
+  async submit(scorecardId: string) {
+    const scorecard = await this.prisma.judgeScorecard.findFirst({
+      where: {
+        id: scorecardId,
+        isActive: true,
+      },
+      include: {
+        round: {
+          include: {
+            battle: {
+              include: {
+                competitors: {
+                  where: { isActive: true },
+                },
+              },
+            },
+          },
+        },
+        judgingConfiguration: {
+          include: {
+            criteria: {
+              where: { isActive: true },
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+        criterionScores: {
+          include: {
+            judgeCriterion: true,
+            battleCompetitor: true,
+          },
+        },
+      },
+    });
+
+    if (!scorecard) {
+      throw new NotFoundException('Scorecard não encontrado ou inativo.');
+    }
+
+    if (scorecard.status !== 'DRAFT') {
+      throw new ConflictException('O scorecard já foi submetido.');
+    }
+
+    if (scorecard.round.status !== 'ONGOING') {
+      throw new ConflictException(
+        'Só é possível submeter scorecard de um round em andamento.',
+      );
+    }
+
+    if (scorecard.round.battle.status !== 'ONGOING') {
+      throw new ConflictException(
+        'Só é possível submeter scorecard de uma batalha em andamento.',
+      );
+    }
+
+    const competitorIds = scorecard.round.battle.competitors.map(
+      (competitor) => competitor.id,
+    );
+
+    const criteria = scorecard.judgingConfiguration.criteria;
+
+    if (competitorIds.length !== 2) {
+      throw new BadRequestException(
+        'A batalha deve possuir exatamente dois competidores ativos.',
+      );
+    }
+
+    if (criteria.length === 0) {
+      throw new BadRequestException(
+        'A configuração de julgamento não possui critérios ativos.',
+      );
+    }
+
+    const expectedCount = competitorIds.length * criteria.length;
+
+    if (scorecard.criterionScores.length !== expectedCount) {
+      throw new BadRequestException(
+        `O scorecard está incompleto. Esperado: ${expectedCount} notas. Encontrado: ${scorecard.criterionScores.length}.`,
+      );
+    }
+
+    const validCompetitorIds = new Set(competitorIds);
+    const validCriteriaById = new Map(
+      criteria.map((criterion) => [criterion.id, criterion]),
+    );
+    const combinations = new Set<string>();
+
+    for (const criterionScore of scorecard.criterionScores) {
+      if (!validCompetitorIds.has(criterionScore.battleCompetitorId)) {
+        throw new BadRequestException(
+          'O scorecard possui nota para competidor que não pertence à batalha.',
+        );
+      }
+
+      const criterion = validCriteriaById.get(criterionScore.judgeCriterionId);
+
+      if (!criterion) {
+        throw new BadRequestException(
+          'O scorecard possui nota para critério que não pertence à configuração ativa.',
+        );
+      }
+
+      const combinationKey = `${criterionScore.battleCompetitorId}:${criterionScore.judgeCriterionId}`;
+
+      if (combinations.has(combinationKey)) {
+        throw new BadRequestException(
+          'O scorecard possui notas duplicadas para o mesmo competidor e critério.',
+        );
+      }
+
+      combinations.add(combinationKey);
+
+      const score = Number(criterionScore.score);
+      const min = Number(criterion.minScore);
+      const max = Number(criterion.maxScore);
+
+      if (score < min || score > max) {
+        throw new BadRequestException(
+          `A nota do critério ${criterion.code} deve estar entre ${min} e ${max}.`,
+        );
+      }
+    }
+
+    for (const competitorId of competitorIds) {
+      for (const criterion of criteria) {
+        const combinationKey = `${competitorId}:${criterion.id}`;
+
+        if (!combinations.has(combinationKey)) {
+          throw new BadRequestException(
+            'Todo competidor deve possuir uma nota para cada critério ativo.',
+          );
+        }
+      }
+    }
+
+    return this.prisma.judgeScorecard.update({
+      where: {
+        id: scorecard.id,
+      },
+      data: {
+        status: 'SUBMITTED',
+        submittedAt: new Date(),
+      },
+      include: {
+        judgeAssignment: {
+          include: {
+            eventStaff: {
+              include: {
+                staffMember: true,
+              },
+            },
+          },
+        },
+        judgingConfiguration: {
+          include: {
+            criteria: {
+              where: { isActive: true },
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+        criterionScores: {
+          include: {
+            battleCompetitor: {
+              include: {
+                eventParticipant: {
+                  include: {
+                    athlete: true,
+                    crew: true,
+                  },
+                },
+              },
+            },
+            judgeCriterion: true,
+          },
+          orderBy: [
+            {
+              battleCompetitor: {
+                side: 'asc',
+              },
+            },
+            {
+              judgeCriterion: {
+                order: 'asc',
+              },
+            },
+          ],
+        },
+      },
+    });
   }
 
   async findByRound(roundId: string) {
