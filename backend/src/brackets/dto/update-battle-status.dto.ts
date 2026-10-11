@@ -12,5 +12,5 @@ export class UpdateBattleStatusDto {
       'Novo status da batalha. Transições permitidas: PENDING → ONGOING → FINISHED.',
   })
   @IsEnum(BattleStatus)
-  status: BattleStatus;
+  status!: BattleStatus;
 }

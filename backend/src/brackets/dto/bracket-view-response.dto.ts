@@ -1,16 +1,26 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { BattlePhase, BattleSide, BattleStatus } from '@prisma/client';
 
 export class BracketItemDto {
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   eventId!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   categoryId!: string;
 
-  @ApiProperty({ example: 'TOP16' })
+  @ApiProperty({
+    enum: ['TOP8', 'TOP16'],
+    example: 'TOP16',
+  })
   type!: string;
 
   @ApiProperty()
@@ -27,7 +37,9 @@ export class BracketItemDto {
 }
 
 export class EventItemDto {
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   id!: string;
 
   @ApiProperty()
@@ -36,16 +48,22 @@ export class EventItemDto {
   @ApiProperty()
   slug!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   description!: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   location!: string | null;
 
   @ApiProperty()
   startDate!: Date;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   endDate!: Date | null;
 
   @ApiProperty()
@@ -53,10 +71,14 @@ export class EventItemDto {
 }
 
 export class CategoryItemDto {
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    format: 'uuid',
+  })
   eventId!: string;
 
   @ApiProperty()
@@ -65,19 +87,29 @@ export class CategoryItemDto {
   @ApiProperty()
   slug!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   description!: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   rules!: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   minAge!: number | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   maxAge!: number | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+  })
   level!: string | null;
 
   @ApiProperty()
@@ -87,24 +119,86 @@ export class CategoryItemDto {
   isActive!: boolean;
 }
 
-export class BattleItemDto {
-  @ApiProperty()
+export class BattleCompetitorItemDto {
+  @ApiProperty({
+    format: 'uuid',
+  })
   id!: string;
 
+  @ApiProperty({
+    format: 'uuid',
+  })
+  eventParticipantId!: string;
+
+  @ApiProperty({
+    enum: BattleSide,
+    example: BattleSide.RED,
+  })
+  side!: BattleSide;
+
+  @ApiProperty({
+    format: 'uuid',
+  })
+  athleteId!: string;
+
   @ApiProperty()
+  athleteName!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+  })
+  athleteStageName!: string | null;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+  })
+  crewId!: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+  })
+  crewName!: string | null;
+
+  @ApiProperty()
+  isActive!: boolean;
+}
+
+export class BattleItemDto {
+  @ApiProperty({
+    format: 'uuid',
+  })
+  id!: string;
+
+  @ApiProperty({
+    format: 'uuid',
+  })
   bracketId!: string;
 
-  @ApiProperty({ example: 'ROUND_OF_16' })
-  phase!: string;
+  @ApiProperty({
+    enum: BattlePhase,
+    example: BattlePhase.ROUND_OF_16,
+  })
+  phase!: BattlePhase;
 
   @ApiProperty()
   order!: number;
 
-  @ApiProperty({ example: 'PENDING' })
-  status!: string;
+  @ApiProperty({
+    enum: BattleStatus,
+    example: BattleStatus.PENDING,
+  })
+  status!: BattleStatus;
 
   @ApiProperty()
   isActive!: boolean;
+
+  @ApiProperty({
+    type: [BattleCompetitorItemDto],
+    description:
+      'Competidores persistidos na batalha, ordenados por lado. A batalha pode estar sem competidores em fases ainda não preenchidas.',
+  })
+  competitors!: BattleCompetitorItemDto[];
 
   @ApiProperty()
   createdAt!: Date;
@@ -114,15 +208,23 @@ export class BattleItemDto {
 }
 
 export class BracketViewResponseDto {
-  @ApiProperty({ type: BracketItemDto })
+  @ApiProperty({
+    type: BracketItemDto,
+  })
   bracket!: BracketItemDto;
 
-  @ApiProperty({ type: EventItemDto })
+  @ApiProperty({
+    type: EventItemDto,
+  })
   event!: EventItemDto;
 
-  @ApiProperty({ type: CategoryItemDto })
+  @ApiProperty({
+    type: CategoryItemDto,
+  })
   category!: CategoryItemDto;
 
-  @ApiProperty({ type: [BattleItemDto] })
+  @ApiProperty({
+    type: [BattleItemDto],
+  })
   battles!: BattleItemDto[];
 }

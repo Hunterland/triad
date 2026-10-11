@@ -1,4 +1,3 @@
-// src/brackets/brackets.service.ts
 import {
   BadRequestException,
   ConflictException,
@@ -7,8 +6,10 @@ import {
 } from '@nestjs/common';
 import {
   BattlePhase,
+  BattleSide,
   BattleStatus,
   BracketType,
+  Prisma,
   RegistrationStatus,
   RoundStatus,
 } from '@prisma/client';
@@ -23,7 +24,9 @@ export class BracketsService {
 
   async generate(dto: CreateBracketDto) {
     const event = await this.prisma.event.findUnique({
-      where: { id: dto.eventId },
+      where: {
+        id: dto.eventId,
+      },
     });
 
     if (!event) {
@@ -37,7 +40,9 @@ export class BracketsService {
     }
 
     const category = await this.prisma.category.findUnique({
-      where: { id: dto.categoryId },
+      where: {
+        id: dto.categoryId,
+      },
     });
 
     if (!category) {
@@ -61,13 +66,12 @@ export class BracketsService {
         eventId: dto.eventId,
         categoryId: dto.categoryId,
         type: dto.type,
-        isActive: true,
       },
     });
 
     if (existingBracket) {
       throw new ConflictException(
-        'Já existe uma chave ativa para este evento, categoria e tipo.',
+        'Já existe uma chave para este evento, categoria e tipo.',
       );
     }
 
@@ -110,49 +114,142 @@ export class BracketsService {
 
     const numberOfBattles = size / 2;
 
-    return this.prisma.$transaction(async (tx) => {
-      const bracket = await tx.bracket.create({
-        data: {
-          eventId: dto.eventId,
-          categoryId: dto.categoryId,
-          type: dto.type,
-          name: bracketName,
-          isActive: true,
-        },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const bracket = await tx.bracket.create({
+          data: {
+            eventId: dto.eventId,
+            categoryId: dto.categoryId,
+            type: dto.type,
+            name: bracketName,
+            isActive: true,
+          },
+        });
+
+        const battlesData = Array.from(
+          { length: numberOfBattles },
+          (_, index) => ({
+            bracketId: bracket.id,
+            phase: firstPhase,
+            order: index + 1,
+            status: BattleStatus.PENDING,
+            isActive: true,
+          }),
+        );
+
+        await tx.battle.createMany({
+          data: battlesData,
+        });
+
+        const battles = await tx.battle.findMany({
+          where: {
+            bracketId: bracket.id,
+          },
+          orderBy: {
+            order: 'asc',
+          },
+        });
+
+        const battleCompetitorsData = battles.flatMap((battle, battleIndex) => {
+          const redRegistration = approvedRegistrations[battleIndex * 2];
+          const blueRegistration = approvedRegistrations[battleIndex * 2 + 1];
+
+          if (!redRegistration || !blueRegistration) {
+            throw new BadRequestException(
+              'Não foi possível distribuir todas as inscrições aprovadas entre as batalhas.',
+            );
+          }
+
+          return [
+            {
+              battleId: battle.id,
+              eventParticipantId: redRegistration.id,
+              side: BattleSide.RED,
+              isActive: true,
+            },
+            {
+              battleId: battle.id,
+              eventParticipantId: blueRegistration.id,
+              side: BattleSide.BLUE,
+              isActive: true,
+            },
+          ];
+        });
+
+        await tx.battleCompetitor.createMany({
+          data: battleCompetitorsData,
+        });
+
+        const battlesWithCompetitors = await tx.battle.findMany({
+          where: {
+            bracketId: bracket.id,
+            isActive: true,
+          },
+          orderBy: [
+            {
+              phase: 'asc',
+            },
+            {
+              order: 'asc',
+            },
+          ],
+          include: {
+            competitors: {
+              where: {
+                isActive: true,
+              },
+              orderBy: {
+                side: 'asc',
+              },
+              include: {
+                eventParticipant: {
+                  include: {
+                    athlete: true,
+                    crew: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return {
+          bracket,
+          battles: battlesWithCompetitors.map((battle) =>
+            this.mapBattleToResponse(battle),
+          ),
+          registrationsUsed: approvedRegistrations.map((registration) => ({
+            id: registration.id,
+            athleteId: registration.athleteId,
+            athleteName: registration.athlete.name,
+            athleteStageName: registration.athlete.stageName,
+            crewId: registration.crewId,
+            crewName: registration.crew?.name ?? null,
+            status: registration.status,
+          })),
+        };
       });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Já existe uma chave para este evento, categoria e tipo.',
+        );
+      }
 
-      const battlesData = Array.from(
-        { length: numberOfBattles },
-        (_, index) => ({
-          bracketId: bracket.id,
-          phase: firstPhase,
-          order: index + 1,
-          status: BattleStatus.PENDING,
-          isActive: true,
-        }),
-      );
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new BadRequestException(
+          'Não foi possível associar os competidores à chave.',
+        );
+      }
 
-      await tx.battle.createMany({
-        data: battlesData,
-      });
-
-      const battles = await tx.battle.findMany({
-        where: { bracketId: bracket.id },
-        orderBy: [{ phase: 'asc' }, { order: 'asc' }],
-      });
-
-      return {
-        bracket,
-        battles,
-        registrationsUsed: approvedRegistrations.map((registration) => ({
-          id: registration.id,
-          athleteId: registration.athleteId,
-          athleteName: registration.athlete.name,
-          crewId: registration.crewId,
-          status: registration.status,
-        })),
-      };
-    });
+      throw error;
+    }
   }
 
   async findByEventAndCategory(
@@ -167,7 +264,35 @@ export class BracketsService {
       },
       include: {
         battles: {
-          orderBy: [{ phase: 'asc' }, { order: 'asc' }],
+          where: {
+            isActive: true,
+          },
+          orderBy: [
+            {
+              phase: 'asc',
+            },
+            {
+              order: 'asc',
+            },
+          ],
+          include: {
+            competitors: {
+              where: {
+                isActive: true,
+              },
+              orderBy: {
+                side: 'asc',
+              },
+              include: {
+                eventParticipant: {
+                  include: {
+                    athlete: true,
+                    crew: true,
+                  },
+                },
+              },
+            },
+          },
         },
         event: true,
         category: true,
@@ -214,16 +339,9 @@ export class BracketsService {
         isTeam: bracket.category.isTeam,
         isActive: bracket.category.isActive,
       },
-      battles: bracket.battles.map((battle) => ({
-        id: battle.id,
-        bracketId: battle.bracketId,
-        phase: battle.phase,
-        order: battle.order,
-        status: battle.status,
-        isActive: battle.isActive,
-        createdAt: battle.createdAt,
-        updatedAt: battle.updatedAt,
-      })),
+      battles: bracket.battles.map((battle) =>
+        this.mapBattleToResponse(battle),
+      ),
     };
   }
 
@@ -232,6 +350,13 @@ export class BracketsService {
       where: {
         id: battleId,
         isActive: true,
+      },
+      include: {
+        competitors: {
+          where: {
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -253,9 +378,37 @@ export class BracketsService {
       );
     }
 
+    if (newStatus === BattleStatus.ONGOING && battle.competitors.length !== 2) {
+      throw new BadRequestException(
+        'A batalha precisa possuir exatamente dois competidores ativos antes de iniciar.',
+      );
+    }
+
+    if (newStatus === BattleStatus.FINISHED) {
+      const unfinishedRound = await this.prisma.round.findFirst({
+        where: {
+          battleId: battle.id,
+          isActive: true,
+          status: {
+            not: RoundStatus.FINISHED,
+          },
+        },
+      });
+
+      if (unfinishedRound) {
+        throw new BadRequestException(
+          'Não é possível finalizar a batalha enquanto existirem rounds não finalizados.',
+        );
+      }
+    }
+
     return this.prisma.battle.update({
-      where: { id: battle.id },
-      data: { status: newStatus },
+      where: {
+        id: battle.id,
+      },
+      data: {
+        status: newStatus,
+      },
     });
   }
 
@@ -277,6 +430,12 @@ export class BracketsService {
     if (battle.status !== BattleStatus.PENDING) {
       throw new BadRequestException(
         'Só é possível criar rounds para uma batalha com status PENDING.',
+      );
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new BadRequestException(
+        'A quantidade de rounds deve ser um inteiro maior que zero.',
       );
     }
 
@@ -313,15 +472,7 @@ export class BracketsService {
         },
       });
 
-      return rounds.map((round) => ({
-        id: round.id,
-        battleId: round.battleId,
-        order: round.order,
-        status: round.status,
-        isActive: round.isActive,
-        createdAt: round.createdAt,
-        updatedAt: round.updatedAt,
-      }));
+      return rounds.map((round) => this.mapRoundToResponse(round));
     });
   }
 
@@ -347,7 +498,88 @@ export class BracketsService {
       },
     });
 
-    return rounds.map((round) => ({
+    return rounds.map((round) => this.mapRoundToResponse(round));
+  }
+
+  async updateRoundStatus(
+    roundId: string,
+    newStatus: RoundStatus,
+  ): Promise<RoundResponseDto> {
+    const round = await this.prisma.round.findFirst({
+      where: {
+        id: roundId,
+        isActive: true,
+      },
+      include: {
+        battle: true,
+      },
+    });
+
+    if (!round) {
+      throw new NotFoundException('Round não encontrado ou inativo.');
+    }
+
+    const allowedTransitions: Record<RoundStatus, RoundStatus[]> = {
+      [RoundStatus.PENDING]: [RoundStatus.ONGOING],
+      [RoundStatus.ONGOING]: [RoundStatus.FINISHED],
+      [RoundStatus.FINISHED]: [],
+    };
+
+    const allowedNextStatuses = allowedTransitions[round.status];
+
+    if (!allowedNextStatuses.includes(newStatus)) {
+      throw new BadRequestException(
+        `Transição de status não permitida: ${round.status} → ${newStatus}.`,
+      );
+    }
+
+    if (
+      newStatus === RoundStatus.ONGOING &&
+      round.battle.status !== BattleStatus.ONGOING
+    ) {
+      throw new BadRequestException(
+        'Não é possível iniciar um round quando a batalha não está em andamento.',
+      );
+    }
+
+    if (newStatus === RoundStatus.ONGOING && round.order > 1) {
+      const previousRound = await this.prisma.round.findFirst({
+        where: {
+          battleId: round.battleId,
+          order: round.order - 1,
+          isActive: true,
+        },
+      });
+
+      if (!previousRound || previousRound.status !== RoundStatus.FINISHED) {
+        throw new BadRequestException(
+          'O round anterior deve estar finalizado antes de iniciar este round.',
+        );
+      }
+    }
+
+    const updatedRound = await this.prisma.round.update({
+      where: {
+        id: round.id,
+      },
+      data: {
+        status: newStatus,
+      },
+    });
+
+    return this.mapRoundToResponse(updatedRound);
+  }
+
+  private mapRoundToResponse(round: {
+    id: string;
+    battleId: string;
+    order: number;
+    status: RoundStatus;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): RoundResponseDto {
+    return {
       id: round.id,
       battleId: round.battleId,
       order: round.order,
@@ -355,6 +587,58 @@ export class BracketsService {
       isActive: round.isActive,
       createdAt: round.createdAt,
       updatedAt: round.updatedAt,
-    }));
+    };
+  }
+
+  private mapBattleToResponse<
+    T extends {
+      id: string;
+      bracketId: string;
+      phase: BattlePhase;
+      order: number;
+      status: BattleStatus;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+      competitors: Array<{
+        id: string;
+        eventParticipantId: string;
+        side: BattleSide;
+        isActive: boolean;
+        eventParticipant: {
+          athleteId: string;
+          crewId: string | null;
+          athlete: {
+            name: string;
+            stageName: string | null;
+          };
+          crew: {
+            name: string;
+          } | null;
+        };
+      }>;
+    },
+  >(battle: T) {
+    return {
+      id: battle.id,
+      bracketId: battle.bracketId,
+      phase: battle.phase,
+      order: battle.order,
+      status: battle.status,
+      isActive: battle.isActive,
+      competitors: battle.competitors.map((competitor) => ({
+        id: competitor.id,
+        eventParticipantId: competitor.eventParticipantId,
+        side: competitor.side,
+        athleteId: competitor.eventParticipant.athleteId,
+        athleteName: competitor.eventParticipant.athlete.name,
+        athleteStageName: competitor.eventParticipant.athlete.stageName,
+        crewId: competitor.eventParticipant.crewId,
+        crewName: competitor.eventParticipant.crew?.name ?? null,
+        isActive: competitor.isActive,
+      })),
+      createdAt: battle.createdAt,
+      updatedAt: battle.updatedAt,
+    };
   }
 }

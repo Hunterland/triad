@@ -52,10 +52,20 @@ enum BattleStatus {
   FINISHED
 }
 
+enum BattleSide {
+  RED
+  BLUE
+}
+
 enum RoundStatus {
   PENDING
   ONGOING
   FINISHED
+}
+
+enum JudgeScorecardStatus {
+  DRAFT
+  SUBMITTED
 }
 
 enum JudgingInterfaceType {
@@ -77,7 +87,7 @@ enum JudgingPurpose {
 }
 
 // --------------------------------------------------
-// MODELS
+// USER AND AUTHORIZATION
 // --------------------------------------------------
 
 model User {
@@ -114,6 +124,10 @@ model UserRole {
 
   @@id([userId, roleId])
 }
+
+// --------------------------------------------------
+// EVENTS
+// --------------------------------------------------
 
 model Event {
   id          String    @id @default(uuid())
@@ -180,7 +194,7 @@ model EventStaff {
 }
 
 // --------------------------------------------------
-// CATEGORY
+// CATEGORIES
 // --------------------------------------------------
 
 model Category {
@@ -211,7 +225,7 @@ model Category {
 }
 
 // --------------------------------------------------
-// ATHLETE
+// ATHLETES
 // --------------------------------------------------
 
 model Athlete {
@@ -235,7 +249,7 @@ model Athlete {
 }
 
 // --------------------------------------------------
-// CREW
+// CREWS
 // --------------------------------------------------
 
 model Crew {
@@ -251,10 +265,6 @@ model Crew {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-// --------------------------------------------------
-// CREW MEMBER (pivot)
-// --------------------------------------------------
 
 model CrewMember {
   crewId    String
@@ -272,7 +282,7 @@ model CrewMember {
 }
 
 // --------------------------------------------------
-// EVENT PARTICIPANT / REGISTRATION
+// EVENT PARTICIPANTS / REGISTRATIONS
 // --------------------------------------------------
 
 model EventParticipant {
@@ -284,10 +294,11 @@ model EventParticipant {
   status     RegistrationStatus @default(PENDING)
   isActive   Boolean            @default(true)
 
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  athlete  Athlete  @relation(fields: [athleteId], references: [id], onDelete: Restrict)
-  crew     Crew?    @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  event             Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  athlete           Athlete            @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  crew              Crew?              @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  battleCompetitors BattleCompetitor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -319,7 +330,6 @@ model Bracket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Um tipo de chave por evento+categoria (v1)
   @@unique([eventId, categoryId, type])
   @@index([eventId])
   @@index([categoryId])
@@ -337,14 +347,40 @@ model Battle {
   status    BattleStatus @default(PENDING)
   isActive  Boolean      @default(true)
 
-  bracket Bracket @relation(fields: [bracketId], references: [id], onDelete: Cascade)
-  rounds  Round[]
+  bracket     Bracket            @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  rounds      Round[]
+  competitors BattleCompetitor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([bracketId])
   @@index([phase])
+}
+
+// --------------------------------------------------
+// BATTLE COMPETITORS
+// --------------------------------------------------
+
+model BattleCompetitor {
+  id                 String     @id @default(uuid())
+  battleId           String
+  eventParticipantId String
+  side               BattleSide
+  isActive           Boolean    @default(true)
+
+  battle           Battle                @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  eventParticipant EventParticipant      @relation(fields: [eventParticipantId], references: [id], onDelete: Restrict)
+  criterionScores  JudgeCriterionScore[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([battleId, side])
+  @@unique([battleId, eventParticipantId])
+  @@index([battleId])
+  @@index([eventParticipantId])
+  @@map("battle_competitors")
 }
 
 // --------------------------------------------------
@@ -358,7 +394,8 @@ model Round {
   status   RoundStatus @default(PENDING)
   isActive Boolean     @default(true)
 
-  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  battle          Battle           @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  judgeScorecards JudgeScorecard[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -378,8 +415,9 @@ model JudgeAssignment {
   categoryId   String
   isActive     Boolean @default(true)
 
-  eventStaff EventStaff @relation(fields: [eventStaffId], references: [id], onDelete: Cascade)
-  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  eventStaff      EventStaff       @relation(fields: [eventStaffId], references: [id], onDelete: Cascade)
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  judgeScorecards JudgeScorecard[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -404,8 +442,9 @@ model JudgingConfiguration {
   version       Int                        @default(1)
   isActive      Boolean                    @default(true)
 
-  category Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  criteria JudgeCriterion[]
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  criteria        JudgeCriterion[]
+  judgeScorecards JudgeScorecard[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -432,7 +471,8 @@ model JudgeCriterion {
   maxScore               Decimal @default(10) @db.Decimal(5, 2)
   isActive               Boolean @default(true)
 
-  judgingConfiguration JudgingConfiguration @relation(fields: [judgingConfigurationId], references: [id], onDelete: Cascade)
+  judgingConfiguration JudgingConfiguration  @relation(fields: [judgingConfigurationId], references: [id], onDelete: Cascade)
+  criterionScores      JudgeCriterionScore[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -441,4 +481,58 @@ model JudgeCriterion {
   @@unique([judgingConfigurationId, order])
   @@index([judgingConfigurationId])
   @@map("judge_criteria")
+}
+
+// --------------------------------------------------
+// JUDGE SCORECARDS
+// --------------------------------------------------
+
+model JudgeScorecard {
+  id                     String               @id @default(uuid())
+  judgeAssignmentId      String
+  roundId                String
+  judgingConfigurationId String
+  status                 JudgeScorecardStatus @default(DRAFT)
+  submittedAt            DateTime?
+  isActive               Boolean              @default(true)
+
+  judgeAssignment      JudgeAssignment       @relation(fields: [judgeAssignmentId], references: [id], onDelete: Restrict)
+  round                Round                 @relation(fields: [roundId], references: [id], onDelete: Restrict)
+  judgingConfiguration JudgingConfiguration  @relation(fields: [judgingConfigurationId], references: [id], onDelete: Restrict)
+  criterionScores      JudgeCriterionScore[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([judgeAssignmentId, roundId])
+  @@index([judgeAssignmentId])
+  @@index([roundId])
+  @@index([judgingConfigurationId])
+  @@index([status])
+  @@map("judge_scorecards")
+}
+
+// --------------------------------------------------
+// JUDGE CRITERION SCORES
+// --------------------------------------------------
+
+model JudgeCriterionScore {
+  id                 String  @id @default(uuid())
+  judgeScorecardId   String
+  battleCompetitorId String
+  judgeCriterionId   String
+  score              Decimal @db.Decimal(5, 2)
+
+  judgeScorecard   JudgeScorecard   @relation(fields: [judgeScorecardId], references: [id], onDelete: Cascade)
+  battleCompetitor BattleCompetitor @relation(fields: [battleCompetitorId], references: [id], onDelete: Restrict)
+  judgeCriterion   JudgeCriterion   @relation(fields: [judgeCriterionId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([judgeScorecardId, battleCompetitorId, judgeCriterionId])
+  @@index([judgeScorecardId])
+  @@index([battleCompetitorId])
+  @@index([judgeCriterionId])
+  @@map("judge_criterion_scores")
 }

@@ -17,14 +17,15 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { BattleStatus, RoleName } from '@prisma/client';
+import { RoleName } from '@prisma/client';
 import { Roles } from '../auth/roles.decorator';
 import { BracketsService } from './brackets.service';
 import { BracketViewResponseDto } from './dto/bracket-view-response.dto';
 import { CreateBracketDto } from './dto/create-bracket.dto';
-import { UpdateBattleStatusDto } from './dto/update-battle-status.dto';
 import { CreateRoundsDto } from './dto/create-rounds.dto';
 import { RoundResponseDto } from './dto/round-response.dto';
+import { UpdateBattleStatusDto } from './dto/update-battle-status.dto';
+import { UpdateRoundStatusDto } from './dto/update-round-status.dto';
 
 @ApiTags('Brackets')
 @Controller('brackets')
@@ -80,7 +81,7 @@ export class BracketsController {
   @ApiParam({
     name: 'battleId',
     description: 'ID da batalha',
-    example: 'ad0d9407-8e2d-4550-a62c-80b4de576a11',
+    example: 'a8254f95-3002-4875-ba9e-32b69a8e4390',
   })
   @ApiOkResponse({
     description: 'Status da batalha atualizado com sucesso.',
@@ -98,6 +99,7 @@ export class BracketsController {
   ) {
     return this.bracketsService.updateBattleStatus(battleId, dto.status);
   }
+
   @Post('battles/:battleId/rounds')
   @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
   @ApiOperation({
@@ -108,7 +110,7 @@ export class BracketsController {
   @ApiParam({
     name: 'battleId',
     description: 'ID da batalha',
-    example: 'ad0d9407-8e2d-4550-a62c-80b4de576a11',
+    example: 'a8254f95-3002-4875-ba9e-32b69a8e4390',
   })
   @ApiCreatedResponse({
     description: 'Rounds criados com sucesso.',
@@ -140,7 +142,7 @@ export class BracketsController {
   @ApiParam({
     name: 'battleId',
     description: 'ID da batalha',
-    example: 'ad0d9407-8e2d-4550-a62c-80b4de576a11',
+    example: 'a8254f95-3002-4875-ba9e-32b69a8e4390',
   })
   @ApiOkResponse({
     description: 'Rounds encontrados com sucesso.',
@@ -156,5 +158,35 @@ export class BracketsController {
     @Param('battleId', new ParseUUIDPipe()) battleId: string,
   ): Promise<RoundResponseDto[]> {
     return this.bracketsService.findRoundsByBattle(battleId);
+  }
+
+  @Patch('rounds/:roundId/status')
+  @Roles(RoleName.ADMIN, RoleName.ORGANIZER)
+  @ApiOperation({
+    summary: 'Atualizar status de um round',
+    description:
+      'Atualiza o status operacional do round. Transições permitidas: PENDING → ONGOING → FINISHED. O round só pode iniciar se a batalha estiver ONGOING e, para rounds posteriores, se o anterior estiver FINISHED.',
+  })
+  @ApiParam({
+    name: 'roundId',
+    description: 'ID do round',
+    example: 'be58a377-e6c7-489d-8d98-a80ff906ed7b',
+  })
+  @ApiOkResponse({
+    description: 'Status do round atualizado com sucesso.',
+    type: RoundResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'ID inválido, status inválido, transição não permitida ou pré-requisito operacional não atendido.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Round não encontrado ou inativo.',
+  })
+  updateRoundStatus(
+    @Param('roundId', new ParseUUIDPipe()) roundId: string,
+    @Body() dto: UpdateRoundStatusDto,
+  ): Promise<RoundResponseDto> {
+    return this.bracketsService.updateRoundStatus(roundId, dto.status);
   }
 }
