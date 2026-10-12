@@ -99,6 +99,7 @@ model User {
 
   roles   UserRole[]
   athlete Athlete?
+  staff   StaffMember?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -150,6 +151,7 @@ model Event {
 
 model StaffMember {
   id          String    @id @default(uuid())
+  userId      String?   @unique
   name        String
   stageName   String?
   email       String?   @unique
@@ -161,6 +163,7 @@ model StaffMember {
   specialty   String?
   isActive    Boolean   @default(true)
 
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   eventAssignments EventStaff[]
 
   createdAt DateTime @default(now())

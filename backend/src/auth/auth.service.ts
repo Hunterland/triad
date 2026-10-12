@@ -42,7 +42,7 @@ export class AuthService {
       roles: [RoleName.ATHLETE],
     });
 
-    const roles = this.extractRoleNames(user as UserWithRoles);
+    const roles = this.extractRoleNames(user);
     const token = await this.signToken(user, roles);
 
     return { accessToken: token };
@@ -71,7 +71,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const roles = this.extractRoleNames(user as UserWithRoles);
+    const roles = this.extractRoleNames(user);
     const token = await this.signToken(user, roles);
 
     return { accessToken: token };

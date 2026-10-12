@@ -1,10 +1,10 @@
-// src/auth/jwt.strategy.ts
 import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { PassportStrategy } from '@nestjs/passport';
 import { RoleName } from '@prisma/client';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     return {
       userId: payload.sub,
       email: payload.email,

@@ -7,15 +7,19 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateJudgeScorecardDto } from './dto/create-judge-scorecard.dto';
 import { CreateJudgeCriterionScoreDto } from './dto/create-judge-criterion-score.dto';
+import { CreateJudgeScorecardDto } from './dto/create-judge-scorecard.dto';
 import { UpdateJudgeCriterionScoreDto } from './dto/update-judge-criterion-score.dto';
 
 @Injectable()
 export class JudgeScorecardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createForRound(roundId: string, dto: CreateJudgeScorecardDto) {
+  async createForRound(
+    roundId: string,
+    userId: string,
+    dto: CreateJudgeScorecardDto,
+  ) {
     const round = await this.prisma.round.findUnique({
       where: { id: roundId },
       include: {
@@ -49,9 +53,9 @@ export class JudgeScorecardService {
       );
     }
 
-    if (round.status === 'FINISHED') {
+    if (round.status !== 'ONGOING') {
       throw new ConflictException(
-        'Não é possível criar scorecard para um round finalizado.',
+        'Só é possível criar scorecard para um round em andamento.',
       );
     }
 
@@ -61,34 +65,11 @@ export class JudgeScorecardService {
       );
     }
 
-    const assignment = await this.prisma.judgeAssignment.findFirst({
-      where: {
-        id: dto.judgeAssignmentId,
-        categoryId,
-        isActive: true,
-        eventStaff: {
-          eventId,
-          role: 'JUDGE',
-          isActive: true,
-          staffMember: {
-            isActive: true,
-          },
-        },
-      },
-      include: {
-        eventStaff: {
-          include: {
-            staffMember: true,
-          },
-        },
-      },
-    });
-
-    if (!assignment) {
-      throw new ForbiddenException(
-        'A atribuição informada não corresponde a um juiz ativo desta categoria e evento.',
-      );
-    }
+    const assignment = await this.findJudgeAssignmentForCategory(
+      userId,
+      eventId,
+      categoryId,
+    );
 
     const configuration = await this.prisma.judgingConfiguration.findFirst({
       where: {
@@ -122,7 +103,7 @@ export class JudgeScorecardService {
     const duplicate = await this.prisma.judgeScorecard.findUnique({
       where: {
         judgeAssignmentId_roundId: {
-          judgeAssignmentId: dto.judgeAssignmentId,
+          judgeAssignmentId: assignment.id,
           roundId,
         },
       },
@@ -144,7 +125,7 @@ export class JudgeScorecardService {
       return await this.prisma.$transaction(async (tx) => {
         const scorecard = await tx.judgeScorecard.create({
           data: {
-            judgeAssignmentId: dto.judgeAssignmentId,
+            judgeAssignmentId: assignment.id,
             roundId,
             judgingConfigurationId: configuration.id,
             status: 'DRAFT',
@@ -162,53 +143,7 @@ export class JudgeScorecardService {
 
         return tx.judgeScorecard.findUniqueOrThrow({
           where: { id: scorecard.id },
-          include: {
-            judgeAssignment: {
-              include: {
-                eventStaff: {
-                  include: {
-                    staffMember: true,
-                  },
-                },
-              },
-            },
-            round: true,
-            judgingConfiguration: {
-              include: {
-                criteria: {
-                  where: { isActive: true },
-                  orderBy: { order: 'asc' },
-                },
-              },
-            },
-            criterionScores: {
-              include: {
-                battleCompetitor: {
-                  include: {
-                    eventParticipant: {
-                      include: {
-                        athlete: true,
-                        crew: true,
-                      },
-                    },
-                  },
-                },
-                judgeCriterion: true,
-              },
-              orderBy: [
-                {
-                  battleCompetitor: {
-                    side: 'asc',
-                  },
-                },
-                {
-                  judgeCriterion: {
-                    order: 'asc',
-                  },
-                },
-              ],
-            },
-          },
+          include: this.scorecardDetailsInclude(),
         });
       });
     } catch (error: unknown) {
@@ -225,7 +160,42 @@ export class JudgeScorecardService {
     }
   }
 
-  async findOne(scorecardId: string) {
+  async findByRound(roundId: string, userId: string) {
+    const round = await this.prisma.round.findUnique({
+      where: { id: roundId },
+      include: {
+        battle: {
+          include: {
+            bracket: true,
+          },
+        },
+      },
+    });
+
+    if (!round || !round.isActive) {
+      throw new NotFoundException('Round não encontrado ou inativo.');
+    }
+
+    const assignment = await this.findJudgeAssignmentForCategory(
+      userId,
+      round.battle.bracket.eventId,
+      round.battle.bracket.categoryId,
+    );
+
+    return this.prisma.judgeScorecard.findMany({
+      where: {
+        roundId,
+        judgeAssignmentId: assignment.id,
+        isActive: true,
+      },
+      include: this.scorecardDetailsInclude(),
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async findOne(scorecardId: string, userId: string) {
     const scorecard = await this.prisma.judgeScorecard.findFirst({
       where: {
         id: scorecardId,
@@ -245,62 +215,10 @@ export class JudgeScorecardService {
           include: {
             battle: {
               include: {
-                bracket: {
-                  include: {
-                    event: true,
-                    category: true,
-                  },
-                },
-                competitors: {
-                  where: { isActive: true },
-                  orderBy: { side: 'asc' },
-                  include: {
-                    eventParticipant: {
-                      include: {
-                        athlete: true,
-                        crew: true,
-                      },
-                    },
-                  },
-                },
+                bracket: true,
               },
             },
           },
-        },
-        judgingConfiguration: {
-          include: {
-            criteria: {
-              where: { isActive: true },
-              orderBy: { order: 'asc' },
-            },
-          },
-        },
-        criterionScores: {
-          include: {
-            battleCompetitor: {
-              include: {
-                eventParticipant: {
-                  include: {
-                    athlete: true,
-                    crew: true,
-                  },
-                },
-              },
-            },
-            judgeCriterion: true,
-          },
-          orderBy: [
-            {
-              battleCompetitor: {
-                side: 'asc',
-              },
-            },
-            {
-              judgeCriterion: {
-                order: 'asc',
-              },
-            },
-          ],
         },
       },
     });
@@ -309,12 +227,18 @@ export class JudgeScorecardService {
       throw new NotFoundException('Scorecard não encontrado ou inativo.');
     }
 
-    return scorecard;
+    await this.assertScorecardOwnership(scorecard.id, userId);
+
+    return this.prisma.judgeScorecard.findUniqueOrThrow({
+      where: { id: scorecard.id },
+      include: this.scorecardDetailsInclude(),
+    });
   }
 
   async updateCriterionScore(
     scorecardId: string,
     criterionScoreId: string,
+    userId: string,
     dto: UpdateJudgeCriterionScoreDto,
   ) {
     const scorecard = await this.prisma.judgeScorecard.findFirst({
@@ -336,6 +260,8 @@ export class JudgeScorecardService {
     if (!scorecard) {
       throw new NotFoundException('Scorecard não encontrado ou inativo.');
     }
+
+    await this.assertScorecardOwnership(scorecard.id, userId);
 
     if (scorecard.status !== 'DRAFT') {
       throw new ConflictException(
@@ -408,7 +334,7 @@ export class JudgeScorecardService {
     });
   }
 
-  async submit(scorecardId: string) {
+  async submit(scorecardId: string, userId: string) {
     const scorecard = await this.prisma.judgeScorecard.findFirst({
       where: {
         id: scorecardId,
@@ -446,6 +372,8 @@ export class JudgeScorecardService {
     if (!scorecard) {
       throw new NotFoundException('Scorecard não encontrado ou inativo.');
     }
+
+    await this.assertScorecardOwnership(scorecard.id, userId);
 
     if (scorecard.status !== 'DRAFT') {
       throw new ConflictException('O scorecard já foi submetido.');
@@ -551,121 +479,149 @@ export class JudgeScorecardService {
         status: 'SUBMITTED',
         submittedAt: new Date(),
       },
-      include: {
-        judgeAssignment: {
-          include: {
-            eventStaff: {
-              include: {
-                staffMember: true,
-              },
-            },
-          },
-        },
-        judgingConfiguration: {
-          include: {
-            criteria: {
-              where: { isActive: true },
-              orderBy: { order: 'asc' },
-            },
-          },
-        },
-        criterionScores: {
-          include: {
-            battleCompetitor: {
-              include: {
-                eventParticipant: {
-                  include: {
-                    athlete: true,
-                    crew: true,
-                  },
-                },
-              },
-            },
-            judgeCriterion: true,
-          },
-          orderBy: [
-            {
-              battleCompetitor: {
-                side: 'asc',
-              },
-            },
-            {
-              judgeCriterion: {
-                order: 'asc',
-              },
-            },
-          ],
-        },
-      },
+      include: this.scorecardDetailsInclude(),
     });
   }
 
-  async findByRound(roundId: string) {
-    const round = await this.prisma.round.findUnique({
-      where: { id: roundId },
-      select: { id: true },
-    });
-
-    if (!round) {
-      throw new NotFoundException('Round não encontrado.');
-    }
-
-    return this.prisma.judgeScorecard.findMany({
+  private async findJudgeAssignmentForCategory(
+    userId: string,
+    eventId: string,
+    categoryId: string,
+  ) {
+    const assignment = await this.prisma.judgeAssignment.findFirst({
       where: {
-        roundId,
+        categoryId,
         isActive: true,
+        eventStaff: {
+          eventId,
+          role: 'JUDGE',
+          isActive: true,
+          staffMember: {
+            userId,
+            isActive: true,
+          },
+        },
       },
       include: {
-        judgeAssignment: {
+        eventStaff: {
           include: {
-            eventStaff: {
-              include: {
-                staffMember: true,
-              },
+            staffMember: true,
+          },
+        },
+      },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException(
+        'O usuário autenticado não possui uma atribuição ativa de juiz para esta categoria.',
+      );
+    }
+
+    return assignment;
+  }
+
+  private async assertScorecardOwnership(scorecardId: string, userId: string) {
+    const ownedScorecard = await this.prisma.judgeScorecard.findFirst({
+      where: {
+        id: scorecardId,
+        isActive: true,
+        judgeAssignment: {
+          isActive: true,
+          eventStaff: {
+            role: 'JUDGE',
+            isActive: true,
+            staffMember: {
+              userId,
+              isActive: true,
             },
           },
         },
-        judgingConfiguration: {
-          select: {
-            id: true,
-            name: true,
-            interfaceType: true,
-            purpose: true,
-            version: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!ownedScorecard) {
+      throw new ForbiddenException(
+        'Você não possui permissão para acessar este scorecard.',
+      );
+    }
+  }
+
+  private scorecardDetailsInclude() {
+    return {
+      judgeAssignment: {
+        include: {
+          eventStaff: {
+            include: {
+              staffMember: true,
+            },
           },
         },
-        criterionScores: {
-          include: {
-            battleCompetitor: {
-              include: {
-                eventParticipant: {
-                  include: {
-                    athlete: true,
-                    crew: true,
+      },
+      round: {
+        include: {
+          battle: {
+            include: {
+              bracket: {
+                include: {
+                  event: true,
+                  category: true,
+                },
+              },
+              competitors: {
+                where: { isActive: true },
+                orderBy: { side: 'asc' as const },
+                include: {
+                  eventParticipant: {
+                    include: {
+                      athlete: true,
+                      crew: true,
+                    },
                   },
                 },
               },
             },
-            judgeCriterion: true,
           },
-          orderBy: [
-            {
-              battleCompetitor: {
-                side: 'asc',
-              },
-            },
-            {
-              judgeCriterion: {
-                order: 'asc',
-              },
-            },
-          ],
         },
       },
-      orderBy: {
-        createdAt: 'asc',
+      judgingConfiguration: {
+        include: {
+          criteria: {
+            where: { isActive: true },
+            orderBy: { order: 'asc' as const },
+          },
+        },
       },
-    });
+      criterionScores: {
+        include: {
+          battleCompetitor: {
+            include: {
+              eventParticipant: {
+                include: {
+                  athlete: true,
+                  crew: true,
+                },
+              },
+            },
+          },
+          judgeCriterion: true,
+        },
+        orderBy: [
+          {
+            battleCompetitor: {
+              side: 'asc' as const,
+            },
+          },
+          {
+            judgeCriterion: {
+              order: 'asc' as const,
+            },
+          },
+        ],
+      },
+    } satisfies Prisma.JudgeScorecardInclude;
   }
 
   private validateCriterionScores(
