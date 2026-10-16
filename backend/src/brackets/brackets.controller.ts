@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -28,6 +29,7 @@ import { UpdateBattleStatusDto } from './dto/update-battle-status.dto';
 import { UpdateRoundStatusDto } from './dto/update-round-status.dto';
 
 @ApiTags('Brackets')
+@ApiBearerAuth('Bearer')
 @Controller('brackets')
 export class BracketsController {
   constructor(private readonly bracketsService: BracketsService) {}

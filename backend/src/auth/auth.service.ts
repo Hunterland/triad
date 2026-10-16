@@ -10,20 +10,26 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { PrismaService } from '../prisma/prisma.service';
 
 type UserWithRoles = User & {
-  roles?: { role: { name: RoleName } }[];
+  roles?: {
+    role: {
+      name: RoleName;
+    };
+  }[];
 };
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
 
   private extractRoleNames(user: UserWithRoles): RoleName[] {
-    return user.roles?.map((ur) => ur.role.name) ?? [];
+    return user.roles?.map((userRole) => userRole.role.name) ?? [];
   }
 
   async register(payload: RegisterDto): Promise<{ accessToken: string }> {
@@ -51,7 +57,7 @@ export class AuthService {
   async validateUser(email: string, plainPassword: string) {
     const user = await this.usersService.findByEmail(email);
 
-    if (!user) {
+    if (!user || !user.isActive) {
       return null;
     }
 
@@ -65,16 +71,44 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<{ accessToken: string }> {
-    const user = await this.validateUser(dto.email, dto.password);
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        isActive: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    if (!user) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const roles = this.extractRoleNames(user);
-    const token = await this.signToken(user, roles);
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
-    return { accessToken: token };
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      roles: user.roles.map((userRole) => userRole.role.name),
+    };
+
+    return {
+      accessToken: await this.jwtService.signAsync(payload),
+    };
   }
 
   private async signToken(user: User, roles: RoleName[]): Promise<string> {

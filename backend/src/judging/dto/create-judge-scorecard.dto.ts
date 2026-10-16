@@ -17,13 +17,6 @@ export class CreateJudgeScorecardDto {
     example: 'd5a5a0ed-eae9-451e-9a69-355e746fd773',
   })
   @IsUUID()
-  judgeAssignmentId!: string;
-
-  @ApiProperty({
-    description: 'ID da configuração de julgamento TRIAD publicada',
-    example: '080b9717-e690-43fa-8fdb-4bc55f04f410',
-  })
-  @IsUUID()
   judgingConfigurationId!: string;
 
   @ApiProperty({
