@@ -6,15 +6,18 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
+import { Request } from 'express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 @ApiTags('users')
 @ApiBearerAuth('Bearer')
@@ -50,7 +53,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Desativar usuário' })
   @Roles(RoleName.ADMIN)
   @Patch(':id/deactivate')
-  async deactivate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.deactivateUser(id);
+  async deactivate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request & { user: AuthenticatedUser },
+  ) {
+    return this.usersService.deactivateUser(id, request.user.id);
   }
 }
