@@ -1,12 +1,14 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
-  imports: [RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.scss',
-  templateUrl: './app.html',
+  standalone: true,
+  imports: [ButtonModule],
+  template: `
+    <div class="min-h-screen flex items-center justify-center bg-slate-950">
+      <p-button label="TRIAD funcionando" icon="pi pi-check" />
+    </div>
+  `,
 })
-export class App {
-  protected readonly title = signal('triad-frontend');
-}
+export class App {}
