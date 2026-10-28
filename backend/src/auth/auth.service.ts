@@ -70,12 +70,21 @@ export class AuthService {
     return user;
   }
 
-  async login(dto: LoginDto): Promise<{ accessToken: string }> {
+  async login(dto: LoginDto): Promise<{
+    accessToken: string;
+    user: {
+      id: string;
+      email: string;
+      displayName: string | null;
+      roles: RoleName[];
+    };
+  }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       select: {
         id: true,
         email: true,
+        displayName: true,
         password: true,
         isActive: true,
         roles: {
@@ -100,14 +109,24 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    const roles = user.roles.map((userRole) => userRole.role.name);
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      roles: user.roles.map((userRole) => userRole.role.name),
+      roles,
     };
 
+    const accessToken = await this.jwtService.signAsync(payload);
+
     return {
-      accessToken: await this.jwtService.signAsync(payload),
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        roles,
+      },
     };
   }
 
