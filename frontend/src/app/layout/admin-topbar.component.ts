@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { AuthService } from '../core/auth/auth.service';
 
@@ -36,7 +36,9 @@ import { AuthService } from '../core/auth/auth.service';
           icon="pi pi-sign-out"
           severity="secondary"
           [outlined]="true"
-          (onClick)="auth.logout()"
+          [loading]="loggingOut()"
+          [disabled]="loggingOut()"
+          (onClick)="onLogout()"
         />
       </div>
     </div>
@@ -108,6 +110,16 @@ export class AdminTopbarComponent {
   @Output() menuToggle = new EventEmitter<void>();
 
   readonly auth = inject(AuthService);
+  readonly loggingOut = signal(false);
+
+  onLogout(): void {
+    if (this.loggingOut()) {
+      return;
+    }
+
+    this.loggingOut.set(true);
+    this.auth.logout();
+  }
 
   get userLabel(): string {
     const user = this.auth.currentUser();
